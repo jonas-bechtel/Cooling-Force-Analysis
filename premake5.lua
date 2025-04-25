@@ -17,9 +17,9 @@ outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 
 group "Dependencies"
 	include "vendor/premake"
-	include "Energy Distribution Model/vendor/tinyfiledialogs"
-	include "Energy Distribution Model/vendor/imgui"
-	include "Energy Distribution Model/vendor/implot"
+	include "Cooling Force Analysis/vendor/tinyfiledialogs"
+	include "Cooling Force Analysis/vendor/imgui"
+	include "Cooling Force Analysis/vendor/implot"
 group ""
 
 group "Core"
