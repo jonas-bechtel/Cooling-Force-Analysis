@@ -3,6 +3,25 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
+# data Files
+*.asc
+*.samples
+*.dat
+
+*.toml
+*.txt
+
+# Binaries
+**/bin/
+bin-int/
+
+# Visual Studio files and folder
+.vs/
+**.sln
+**.vcxproj
+**.vcxproj.*
+**.csproj
+
 # User-specific files
 *.rsuser
 *.suo
