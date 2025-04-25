@@ -1,0 +1,6 @@
+[submodule "Cooling Force Analysis/vendor/imgui"]
+	path = Cooling Force Analysis/vendor/imgui
+	url = https://github.com/jonas-bechtel/imgui.git
+[submodule "Cooling Force Analysis/vendor/implot"]
+	path = Cooling Force Analysis/vendor/implot
+	url = https://github.com/jonas-bechtel/implot.git
