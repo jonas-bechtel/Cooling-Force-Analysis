@@ -16,6 +16,13 @@
 # Mono auto generated files
 mono_crash.*
 
+# Visual Studio files and folder
+.vs/
+**.sln
+**.vcxproj
+**.vcxproj.*
+**.csproj
+
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/
