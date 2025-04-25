@@ -28,12 +28,12 @@ project "Cooling Force Analysis"
 		"%{wks.location}/Cooling Force Analysis/vendor/imgui/backends",
 		"%{wks.location}/Cooling Force Analysis/vendor/implot",
 		"%{wks.location}/Cooling Force Analysis/vendor/tinyfiledialogs",
-		"%{ROOT_DIR}/include"
+		"%{wks.location}/Cooling Force Analysis/vendor/ROOT/include"
 	}
 
 	libdirs 
 	{
-		"%{ROOT_DIR}/lib"
+		"%{wks.location}/Cooling Force Analysis/vendor/ROOT/lib"
 	}
 
 	links
