@@ -4,9 +4,12 @@
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
 # data Files
+data/
 *.asc
 *.samples
 *.dat
+*.csv
+*.CSV
 
 *.toml
 *.txt

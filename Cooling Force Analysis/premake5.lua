@@ -1,8 +1,3 @@
-ROOT_DIR = os.getenv("ROOT_DIR")
-if ROOT_DIR == nil then
-    print("ROOT_DIR environment variable is not set! Please make sure it is configured.")
-end
-
 project "Cooling Force Analysis"
 	kind "ConsoleApp"
 	language "C++"
@@ -12,8 +7,8 @@ project "Cooling Force Analysis"
 	targetdir ("%{wks.location}/bin/" .. outputdir .. "/%{prj.name}")
 	objdir ("%{wks.location}/bin-int/" .. outputdir .. "/%{prj.name}")
 
-	--pchheader "pch.h"
-	--pchsource "src/pch.cpp"
+	pchheader "pch.h"
+	pchsource "src/pch.cpp"
 
 	files	
 	{
