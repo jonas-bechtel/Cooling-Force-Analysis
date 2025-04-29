@@ -18,5 +18,6 @@ namespace CSR
 	// taken from Daniel Paul PHD thesis Appendix C equation C.29 [m]
 	const double overlapLength = 1.13614;
 
+	// drift Tube length where cooling force is doing something [m]
 	const double coolerLength = 0.8;
 }

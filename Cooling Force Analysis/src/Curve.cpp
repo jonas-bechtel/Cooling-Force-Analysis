@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "Curve.h"
 #include "FileUtils.h"
+#include "Constants.h"
 
 void Curve::ShowJumpList()
 {
@@ -90,4 +91,14 @@ void Curve::LoadPhaseJumpFolder(std::filesystem::path inputFolder)
 void Curve::SelectedItemChanged()
 {
 
+}
+
+double CalculateDetuningVelocity(double coolingEenrgy, double labEnergy)
+{
+	return sqrt(2 / PhysicalConstants::electronMass) * (sqrt(coolingEenrgy * TMath::Qe()) - sqrt(labEnergy * TMath::Qe()));
+}
+
+double CalculateCoolingForce(double phaseJump, double effectiveBunchingVoltage, int ionCharge)
+{
+	return ionCharge * effectiveBunchingVoltage * sin(phaseJump * TMath::Pi() / 180) / CSR::coolerLength;
 }
