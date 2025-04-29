@@ -75,7 +75,8 @@ void Application::InitImGui()
     //IM_ASSERT(font != nullptr);
 
     // Our state
-
+    ImPlotStyle& Plotstyle = ImPlot::GetStyle();
+    Plotstyle.MarkerSize = 2;
     ImPlot::GetStyle().Use24HourClock = true;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
@@ -83,6 +84,7 @@ void Application::InitImGui()
 
 void Application::Init()
 {
+    
 }
 
 
@@ -163,8 +165,13 @@ void Application::Run()
 void Application::ShowMainWindow()
 {
     ImGui::DockSpaceOverViewport();
-    ImGui::Begin("test");
-    ImGui::Button("bla");
+    ImGui::Begin("Cooling Force Analysis");
+    curve.ShowJumpList();
+    ImGui::SameLine();
+    ImGui::BeginGroup();
+    ShowControls();
+    ShowPlots();
+    ImGui::EndGroup();
     ImGui::End();
 }
 
@@ -181,6 +188,28 @@ void Application::ShutdownImGui()
     CleanupDeviceD3D();
     ::DestroyWindow(hwnd);
     ::UnregisterClassW(wc.lpszClassName, wc.hInstance);
+}
+
+void Application::ShowPlots() const
+{
+    float colRatios[2] = { 1,1.5 };
+    if (ImPlot::BeginSubplots("##plots", 1, 2, ImVec2(-1, -1), 0, nullptr, colRatios))
+    {
+        if (ImPlot::BeginPlot("phase jumps"))
+        {
+            curve.PlotSelectedJump();
+            ImPlot::EndPlot();
+        }
+
+        if (ImPlot::BeginPlot("cool curve"))
+        {
+            curve.Plot();
+            ImPlot::EndPlot();
+        }
+
+        ImPlot::EndSubplots();
+    }
+    
 }
 
 void Application::ShowControls()
@@ -201,7 +230,7 @@ void Application::ShowControls()
         std::filesystem::path file = FileUtils::SelectFile(FileUtils::GetCoolingForceCurveFolder());
         if (!file.empty())
         {
-            curve.LoadFromFile(file);
+            //curve.LoadFromFile(file);
         }
     }
 }

@@ -9,6 +9,8 @@
 #include <future>
 #include <execution>
 #include <numeric>
+#include <algorithm>
+#include <regex>
 
 #include <vector>
 #include <array>

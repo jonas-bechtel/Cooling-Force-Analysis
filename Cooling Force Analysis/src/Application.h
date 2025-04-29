@@ -13,8 +13,7 @@ public:
 	void ShutdownImGui();
 
 private:
-	void ShowJumpList();
-	void ShowPlots();
+	void ShowPlots() const;
 	void ShowControls();
 
 private:

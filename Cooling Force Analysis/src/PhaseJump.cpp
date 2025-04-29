@@ -2,6 +2,23 @@
 #include "PhaseJump.h"
 #include "FileUtils.h"
 
+bool PhaseJump::ShowAsListItem(bool selected) const
+{
+	bool clicked = false;
+	if (ImGui::Selectable(filename.c_str(), selected, ImGuiSelectableFlags_AllowItemOverlap))
+	{
+		clicked = true;
+	}
+
+	return clicked;
+}
+
+void PhaseJump::Plot() const
+{
+	ImPlot::SetupAxes("Time [s]", "Phase[deg]");
+	ImPlot::PlotScatter(filename.c_str(), time.data(), phase.data(), time.size());
+}
+
 void PhaseJump::LoadFromFile(std::filesystem::path inputfile)
 {
 	std::ifstream file;
@@ -28,5 +45,7 @@ void PhaseJump::LoadFromFile(std::filesystem::path inputfile)
 		phase.shrink_to_fit();
 
 		file.close();
+
+		filename = inputfile.filename().string();
 	}
 }

@@ -8,9 +8,12 @@ public:
 
 	void AddPhaseJump(PhaseJump& jump);
 
-	void Save();
+	void Plot() const;
+	void PlotSelectedJump() const;
+
+	//void Save();
 	void LoadPhaseJumpFolder(std::filesystem::path folder);
-	void LoadFromFile(std::filesystem::path file);
+	//void LoadFromFile(std::filesystem::path file);
 
 private:
 	void SelectedItemChanged();
@@ -20,10 +23,13 @@ private:
 	int selectedIndex = -1;
 
 	std::vector<double> jumpValues;
-	std::vector<double> detuningVelocities;
 	std::vector<double> jumpValueErrors;
 
-	std::string name = "";
-	std::filesystem::path folder = "";
+	std::vector<double> detuningVelocities;
+	std::vector<double> coolingForceValues;
+	std::vector<double> coolingForceErrors;
+
+	std::string name = "name";
+	std::filesystem::path folder = "folder";
 };
 

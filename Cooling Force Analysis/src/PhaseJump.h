@@ -5,7 +5,6 @@ struct PhaseJump
 	void Plot() const;
 	void LoadFromFile(std::filesystem::path file);
 
-
 	// main data
 	std::vector<double> time;
 	std::vector<double> phase;
