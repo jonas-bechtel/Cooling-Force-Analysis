@@ -2,17 +2,19 @@
 #include "Curve.h"
 #include "FileUtils.h"
 #include "Constants.h"
+#include "HelpFunctions.h"
 
 void Curve::ShowJumpList()
 {
 	ImGuiChildFlags flags = ImGuiChildFlags_Border | ImGuiChildFlags_ResizeX | ImGuiChildFlags_ResizeY;
 	if (ImGui::BeginChild("cc tabs", ImVec2(400.0f, -1), flags))
 	{
-		ImGui::Text(folder.string().c_str());
+		ImGui::Text("jump data folder: %s", jumpDataFolder.string().c_str());
+		ImGui::Text("lab energy file: %s", labEnergyFile.string().c_str());
 		if (ImGui::BeginListBox("##jump list", ImVec2(-1, 500)))
 		{
 			int i = 0;
-			for (const PhaseJump& jump : jumps)
+			for (PhaseJump& jump : jumps)
 			{
 				ImGui::PushID(i);
 				if (jump.ShowAsListItem(selectedIndex == i))
@@ -26,14 +28,138 @@ void Curve::ShowJumpList()
 
 			ImGui::EndListBox();
 		}
+
+		ImGui::Separator();
+		if (ImGui::Button("load phase jumps"))
+		{
+			std::filesystem::path folder = FileUtils::SelectFolder(FileUtils::GetDataFolder());
+			if (!folder.empty())
+			{
+				LoadPhaseJumpFolder(folder);
+			}
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("load cool curve"))
+		{
+			std::filesystem::path file = FileUtils::SelectFile(FileUtils::GetCoolingForceCurveFolder());
+			if (!file.empty())
+			{
+				//LoadFromFile(file);
+			}
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("load lab energies"))
+		{
+			std::filesystem::path file = FileUtils::SelectFile(FileUtils::GetDataFolder() / jumpDataFolder, {"*.txt"});
+			if (!file.empty())
+			{
+				LoadLabEnergiesFile(file);
+			}
+		}
+
+		ShowParameterInputs();
 	}
 	ImGui::EndChild();
+}
+
+void Curve::ShowParameterInputs()
+{
+	bool changed = false;
+	ImGui::BeginGroup();
+	ImGui::PushItemWidth(100.0f);
+	changed |= ImGui::InputInt("ion charge", &ionCharge);
+	changed |= ImGui::InputDouble("effective bunching voltage", &effectiveBunchingVoltage, 0, 0, "%.3f");
+	changed |= ImGui::InputDouble("cooling energy", &coolingEnergy, 0, 0, "%.4f");
+	ImGui::PopItemWidth();
+	ImGui::EndGroup();
+
+	if (changed)
+	{
+		RecalculateAllForcesAndDetungingVels();
+	}
+}
+
+void Curve::ShowCurrentPhaseJumpParameters()
+{
+	if (selectedIndex >= 0)
+	{
+		jumps.at(selectedIndex).ShowParameterInputs();
+	}
+}
+
+void Curve::RecalculateAllForcesAndDetungingVels()
+{
+	for (int i = 0; i < jumpValues.size(); i++)
+	{
+		coolingForceValues.at(i) = CalculateCoolingForce(jumpValues.at(i), effectiveBunchingVoltage, ionCharge);
+		coolingForceErrors.at(i) = CalculateCoolingForceError(jumpValues.at(i), jumpValueErrors.at(i), effectiveBunchingVoltage, ionCharge);
+	}
+
+	for (int i = 0; i < labEnergies.size(); i++)
+	{
+		detuningVelocities.at(i) = CalculateDetuningVelocity(coolingEnergy, labEnergies.at(i));
+	}
+}
+
+void Curve::RecalculateAllMovingAverages()
+{
+	for (PhaseJump& jump : jumps)
+	{
+		jump.CalculateMovingAverage();
+	}
+}
+
+void Curve::RecalculateAllTemporaryJumpValues()
+{
+	for (PhaseJump& jump : jumps)
+	{
+		jump.CalculateTemporaryJumpValues();
+	}
+}
+
+void Curve::AddAllTempJumpValuesToList()
+{
+	int i = 0;
+	for (PhaseJump& jump : jumps)
+	{
+		jump.AddTempValueToList();
+		jumpValues.at(i) = jump.phaseJumpValue;
+		jumpValueErrors.at(i) = jump.phaseJumpValueError;
+		i++;
+	}
+	RecalculateAllForcesAndDetungingVels();
+}
+
+void Curve::ClearAllValueList()
+{
+	int i = 0;
+	for (PhaseJump& jump : jumps)
+	{
+		jump.ClearValueList();
+		jumpValues.at(i) = 0;
+		jumpValueErrors.at(i) = 0;
+		i++;
+	}
+	RecalculateAllForcesAndDetungingVels();
+}
+
+void Curve::ClampJumpTimesToAllowedRange()
+{
+	for (PhaseJump& jump : jumps)
+	{
+		jump.ClampJumpTimeToAllowedRange();
+	}
 }
 
 void Curve::AddPhaseJump(PhaseJump& jump)
 {
 	jumpValues.push_back(jump.phaseJumpValue);
 	jumpValueErrors.push_back(jump.phaseJumpValueError);
+
+	coolingForceValues.push_back(CalculateCoolingForce(jump.phaseJumpValue, effectiveBunchingVoltage, ionCharge));
+	coolingForceErrors.push_back(CalculateCoolingForceError(jump.phaseJumpValue, jump.phaseJumpValueError, effectiveBunchingVoltage, ionCharge));
+
+	jump.curve = this;
 
 	// will call move Constructor
 	jumps.emplace_back(std::move(jump));
@@ -48,19 +174,37 @@ void Curve::AddPhaseJump(PhaseJump& jump)
 void Curve::Plot() const
 {
 	ImPlot::PlotScatter(name.c_str(), detuningVelocities.data(), coolingForceValues.data(), detuningVelocities.size());
-	ImPlot::PlotErrorBars(name.c_str(), detuningVelocities.data(), coolingForceValues.data(), coolingForceErrors.data(), detuningVelocities.size());
+	ImPlot::PlotErrorBars(name.c_str(), detuningVelocities.data(), coolingForceValues.data(), coolingForceErrors.data(), std::min(detuningVelocities.size(), coolingForceValues.size()));
+
+	if (selectedIndex >= 0 && !detuningVelocities.empty() && !coolingForceValues.empty())
+	{
+		ImPlot::PushStyleColor(ImPlotCol_MarkerFill, ImVec4(1, 0, 0, 1));
+		double selectedDetuningVel = detuningVelocities.at(selectedIndex);
+		double selectedForceValue = coolingForceValues.at(selectedIndex);
+		ImPlot::PlotScatter("##selected", &selectedDetuningVel, &selectedForceValue, 1);
+		ImPlot::PopStyleColor();
+	}
+	
 }
 
-void Curve::PlotSelectedJump() const
+void Curve::PlotSelectedJump()
 {
 	if (selectedIndex >= 0)
 	{
 		jumps.at(selectedIndex).Plot();
+		jumps.at(selectedIndex).PlotMovingAverage();
 	}
 }
 
 void Curve::LoadPhaseJumpFolder(std::filesystem::path inputFolder)
 {
+	jumps.clear();
+	jumpValues.clear();
+	jumpValueErrors.clear();
+	
+	coolingForceValues.clear();
+	coolingForceErrors.clear();
+
 	if (std::filesystem::is_directory(inputFolder))
 	{
 		std::vector<std::filesystem::path> files;
@@ -84,7 +228,33 @@ void Curve::LoadPhaseJumpFolder(std::filesystem::path inputFolder)
 			AddPhaseJump(std::move(jump));
 		}
 		
-		folder = inputFolder.parent_path().parent_path().filename() / inputFolder.parent_path().filename();
+		jumpDataFolder = inputFolder.parent_path().filename() / inputFolder.filename();
+	}
+	RecalculateAllTemporaryJumpValues();
+}
+
+void Curve::LoadLabEnergiesFile(std::filesystem::path inputFile)
+{
+	detuningVelocities.clear();
+	labEnergies.clear();
+
+	std::ifstream file;
+	file.open(inputFile, std::ios::in);
+
+	//FileUtils::GetHeaderFromFile(file);
+
+	std::string line;
+	if (file.is_open())
+	{
+		while (std::getline(file, line))
+		{
+			labEnergies.push_back(std::stod(line));
+			detuningVelocities.push_back(CalculateDetuningVelocity(coolingEnergy, std::stod(line)));
+		}
+
+		file.close();
+
+		labEnergyFile = inputFile.filename().string();
 	}
 }
 
@@ -93,12 +263,3 @@ void Curve::SelectedItemChanged()
 
 }
 
-double CalculateDetuningVelocity(double coolingEenrgy, double labEnergy)
-{
-	return sqrt(2 / PhysicalConstants::electronMass) * (sqrt(coolingEenrgy * TMath::Qe()) - sqrt(labEnergy * TMath::Qe()));
-}
-
-double CalculateCoolingForce(double phaseJump, double effectiveBunchingVoltage, int ionCharge)
-{
-	return ionCharge * effectiveBunchingVoltage * sin(phaseJump * TMath::Pi() / 180) / CSR::coolerLength;
-}

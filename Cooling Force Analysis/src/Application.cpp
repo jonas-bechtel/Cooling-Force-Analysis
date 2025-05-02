@@ -190,7 +190,7 @@ void Application::ShutdownImGui()
     ::UnregisterClassW(wc.lpszClassName, wc.hInstance);
 }
 
-void Application::ShowPlots() const
+void Application::ShowPlots()
 {
     float colRatios[2] = { 1,1.5 };
     if (ImPlot::BeginSubplots("##plots", 1, 2, ImVec2(-1, -1), 0, nullptr, colRatios))
@@ -214,24 +214,38 @@ void Application::ShowPlots() const
 
 void Application::ShowControls()
 {
-
-    ImGui::Separator();
-    if (ImGui::Button("load phase jumps"))
+    ImGui::PushItemWidth(100.0f);
+    bool parametersChanged = false;
+    if (ImGui::InputInt("moving average window size", &PhaseJump::params.movingAverageWindowSize, 2, 2))
     {
-        std::filesystem::path folder = FileUtils::SelectFolder(FileUtils::GetDataFolder());
-        if (!folder.empty())
-        {
-            curve.LoadPhaseJumpFolder(folder);
-        }
+        parametersChanged = true;
+        PhaseJump::params.movingAverageWindowSize = max(1, PhaseJump::params.movingAverageWindowSize);
+        curve.RecalculateAllMovingAverages();
+    }
+    parametersChanged |= ImGui::InputDouble("time passed jump", &PhaseJump::params.timePassedJump, 0, 0, "%.3f");
+    
+    if (parametersChanged)
+    {
+        curve.ClampJumpTimesToAllowedRange();
+        curve.RecalculateAllTemporaryJumpValues();
+    }
+
+    ImGui::Checkbox("show jump line", &PhaseJump::params.showJumpLine);
+    ImGui::Checkbox("use jump back", &PhaseJump::params.useJumpBack);
+    ImGui::Checkbox("plot moving average", &PhaseJump::params.plotMovingAverage);
+    
+    ImGui::SeparatorText("phase jump parameters");
+    curve.ShowCurrentPhaseJumpParameters();
+
+    ImGui::PopItemWidth();
+    if (ImGui::Button("add current jump values to list"))
+    {
+        curve.AddAllTempJumpValuesToList();
     }
     ImGui::SameLine();
-    if (ImGui::Button("load cool curve"))
+    if (ImGui::Button("clear list"))
     {
-        std::filesystem::path file = FileUtils::SelectFile(FileUtils::GetCoolingForceCurveFolder());
-        if (!file.empty())
-        {
-            //curve.LoadFromFile(file);
-        }
+        curve.ClearAllValueList();
     }
 }
 

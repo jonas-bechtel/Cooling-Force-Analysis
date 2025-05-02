@@ -90,7 +90,7 @@ namespace FileUtils
     
     int GetNumberFromFilename(const std::string& filename)
     {
-        std::regex re("_(\\d+)\\.?");  // Regular expression to match underscore followed by digits
+        std::regex re(".*_(\\d+)\\.csv$"); // Regular expression to match underscore followed by digits
         std::smatch match;  
         if (std::regex_search(filename, match, re) && match.size() > 1) {
             return std::stoi(match.str(1));  // Convert matched number to integer

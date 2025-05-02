@@ -36,8 +36,11 @@ def process_directory(directory_path):
             file_path = os.path.join(root, file)
             if file.endswith('.CSV') or file.endswith('.csv'):  # Check file extension for CSV files
                 process_file(file_path)
-            else:
-                os.remove(file_path)
+                
+                # Replace .CSV with .csv
+                new_filename = file_path[:-4] + '.csv'
+                os.rename(file_path, new_filename)
+            
 
 if __name__ == "__main__":
     directory_to_process = '.\\..\\data' 
