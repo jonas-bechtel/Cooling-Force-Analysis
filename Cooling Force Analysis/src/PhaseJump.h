@@ -10,6 +10,8 @@ struct JumpEvaluationParameter
 	bool useJumpBack = false;
 	bool showJumpLine = true;
 	bool plotMovingAverage = true;
+
+	static double timePointPassedJump;
 };
 
 struct PhaseJump
@@ -21,6 +23,7 @@ struct PhaseJump
 	void AddTempValueToList();
 	void ClearValueList();
 	void ClampJumpTimeToAllowedRange();
+	void UpdatePointPastJump();
 
 	void Plot();
 	void PlotMovingAverage() const;

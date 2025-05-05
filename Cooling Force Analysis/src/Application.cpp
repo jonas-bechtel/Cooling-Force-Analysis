@@ -84,7 +84,7 @@ void Application::InitImGui()
 
 void Application::Init()
 {
-    
+    curve.LoadPhaseJumpFolder("data\\ArH+\\Run0038");
 }
 
 
@@ -222,10 +222,11 @@ void Application::ShowControls()
         PhaseJump::params.movingAverageWindowSize = max(1, PhaseJump::params.movingAverageWindowSize);
         curve.RecalculateAllMovingAverages();
     }
-    parametersChanged |= ImGui::InputDouble("time passed jump", &PhaseJump::params.timePassedJump, 0, 0, "%.3f");
+    parametersChanged |= ImGui::InputDouble("time passed jump", &PhaseJump::params.timePassedJump, 0.1, 0.1, "%.3f");
     
     if (parametersChanged)
     {
+        curve.UpdatePointPastJump();
         curve.ClampJumpTimesToAllowedRange();
         curve.RecalculateAllTemporaryJumpValues();
     }

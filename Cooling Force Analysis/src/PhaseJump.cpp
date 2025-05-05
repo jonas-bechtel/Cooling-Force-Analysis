@@ -5,6 +5,7 @@
 #include "Curve.h"
 
 JumpEvaluationParameter PhaseJump::params;
+double JumpEvaluationParameter::timePointPassedJump = 0;
 
 bool PhaseJump::ShowAsListItem(bool selected)
 {
@@ -25,7 +26,10 @@ bool PhaseJump::ShowAsListItem(bool selected)
 
 void PhaseJump::ShowParameterInputs()
 {
-	ImGui::Checkbox("different jump time", &useIndividualJumpTime);
+	if (ImGui::Checkbox("different jump time", &useIndividualJumpTime))
+	{
+		UpdatePointPastJump();
+	}
 	if (useIndividualJumpTime)
 	{
 		ImGui::InputDouble("jump time", &individualJumpTime);
@@ -34,8 +38,6 @@ void PhaseJump::ShowParameterInputs()
 	{
 		ImGui::InputDouble("jump time", &params.JumpTime);
 	}
-	
-
 }
 
 void PhaseJump::CalculateMovingAverage()
@@ -54,7 +56,7 @@ void PhaseJump::CalculateTemporaryJumpValues()
 	int indexOffset = std::floor(params.movingAverageWindowSize / 2.0);
 	int index = TimeToIndex(time, usedJumpTime) - indexOffset;
 	double phaseBefore = movingAveragePhase.at(index);
-	std::cout << "phase before: " << phaseBefore << std::endl;
+	//std::cout << "phase before: " << phaseBefore << std::endl;
 	double phaseAfter = movingAveragePhase.at(TimeToIndex(time, usedJumpTime + params.timePassedJump) - indexOffset);
 	temporaryJumpValue = phaseAfter - phaseBefore;
 }
@@ -84,6 +86,14 @@ void PhaseJump::ClampJumpTimeToAllowedRange()
 	individualJumpTime = std::clamp(individualJumpTime, lowerLimit, upperLimit);
 }
 
+void PhaseJump::UpdatePointPastJump()
+{
+	if(useIndividualJumpTime)
+		params.timePointPassedJump = individualJumpTime + params.timePassedJump;
+	else
+		params.timePointPassedJump = params.JumpTime + params.timePassedJump;
+}
+
 void PhaseJump::Plot()
 {
 	ImPlot::SetupAxes("Time [s]", "Phase [deg]");
@@ -96,26 +106,39 @@ void PhaseJump::Plot()
 	if (params.showJumpLine)
 	{
 		ImVec4 color = ImVec4(1, 0, 0, 1);
+		ImVec4 colorPast = ImVec4(1, 0.3, 0.1, 1.0);
 		if (useIndividualJumpTime)
 		{
 			if (ImPlot::DragLineX(0, &individualJumpTime, color, 1, ImPlotDragToolFlags_Delayed))
 			{
 				ClampJumpTimeToAllowedRange();
+				UpdatePointPastJump();
 				CalculateTemporaryJumpValues();
 			}
-			double timePointPassedJump = individualJumpTime + params.timePassedJump;
-			ImPlot::PlotInfLines("##time passed jump", &timePointPassedJump, 1);
+			if (ImPlot::DragLineX(1, &params.timePointPassedJump, colorPast, 1, ImPlotDragToolFlags_Delayed))
+			{
+				params.timePointPassedJump = std::clamp(params.timePointPassedJump, individualJumpTime, time.back() - time.at(std::floor(params.movingAverageWindowSize / 2)));
+				params.timePassedJump = params.timePointPassedJump - individualJumpTime;
+				ClampJumpTimeToAllowedRange();
+				CalculateTemporaryJumpValues();
+			}
 			ImPlot::TagX(individualJumpTime, color, "jump");
 		}
 		else
 		{
-			if (ImPlot::DragLineX(0, &params.JumpTime, color, 1, ImPlotDragToolFlags_Delayed))
+			if (ImPlot::DragLineX(2, &params.JumpTime, color, 1, ImPlotDragToolFlags_Delayed))
 			{
+				ClampJumpTimeToAllowedRange();
+				UpdatePointPastJump();
+				curve->RecalculateAllTemporaryJumpValues();
+			}
+			if (ImPlot::DragLineX(3, &params.timePointPassedJump, colorPast, 1, ImPlotDragToolFlags_Delayed))
+			{
+				params.timePointPassedJump = std::clamp(params.timePointPassedJump, params.JumpTime, time.back() - time.at(std::floor(params.movingAverageWindowSize / 2)));
+				params.timePassedJump = params.timePointPassedJump - params.JumpTime;
 				ClampJumpTimeToAllowedRange();
 				curve->RecalculateAllTemporaryJumpValues();
 			}
-			double timePointPassedJump = params.JumpTime + params.timePassedJump;
-			ImPlot::PlotInfLines("##time passed jump", &timePointPassedJump, 1);
 			ImPlot::TagX(params.JumpTime, color, "jump");
 		}
 	}
@@ -128,7 +151,9 @@ void PhaseJump::PlotMovingAverage() const
 
 	int offset = std::floor(PhaseJump::params.movingAverageWindowSize / 2);
 	ImPlot::PushStyleVar(ImPlotStyleVar_LineWeight, 5);
+	ImPlot::PushStyleColor(ImPlotCol_Line, ImVec4(0.7, 0.1, 0.1, 1.0));
 	ImPlot::PlotLine("##moving average", time.data() + offset, movingAveragePhase.data(), movingAveragePhase.size());
+	ImPlot::PopStyleColor();
 	ImPlot::PopStyleVar();
 }
 

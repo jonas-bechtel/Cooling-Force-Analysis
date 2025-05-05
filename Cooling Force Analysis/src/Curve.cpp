@@ -50,7 +50,9 @@ void Curve::ShowJumpList()
 		ImGui::SameLine();
 		if (ImGui::Button("load lab energies"))
 		{
-			std::filesystem::path file = FileUtils::SelectFile(FileUtils::GetDataFolder() / jumpDataFolder, {"*.txt"});
+			std::filesystem::path startpath = FileUtils::GetDataFolder() / (jumpDataFolder.string() + "\\");
+			std::cout << startpath << std::endl;
+			std::filesystem::path file = FileUtils::SelectFile(startpath, {"*.txt"});
 			if (!file.empty())
 			{
 				LoadLabEnergiesFile(file);
@@ -149,6 +151,11 @@ void Curve::ClampJumpTimesToAllowedRange()
 	{
 		jump.ClampJumpTimeToAllowedRange();
 	}
+}
+
+void Curve::UpdatePointPastJump()
+{
+	jumps.at(selectedIndex).UpdatePointPastJump();
 }
 
 void Curve::AddPhaseJump(PhaseJump& jump)
@@ -260,6 +267,6 @@ void Curve::LoadLabEnergiesFile(std::filesystem::path inputFile)
 
 void Curve::SelectedItemChanged()
 {
-
+	UpdatePointPastJump();
 }
 

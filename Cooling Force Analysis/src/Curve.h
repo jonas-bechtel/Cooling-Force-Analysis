@@ -15,6 +15,7 @@ public:
 	void AddAllTempJumpValuesToList();
 	void ClearAllValueList();
 	void ClampJumpTimesToAllowedRange();
+	void UpdatePointPastJump();
 
 	void AddPhaseJump(PhaseJump& jump);
 
