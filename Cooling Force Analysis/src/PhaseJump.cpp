@@ -29,14 +29,19 @@ void PhaseJump::ShowParameterInputs()
 	if (ImGui::Checkbox("different jump time", &useIndividualJumpTime))
 	{
 		UpdatePointPastJump();
+		CalculateTemporaryJumpValue();
 	}
 	if (useIndividualJumpTime)
 	{
-		ImGui::InputDouble("jump time", &individualJumpTime);
+		ImGui::InputDouble("jump time", &individualJumpTime, 0.1, 0.1);
+		CalculateTemporaryJumpValue();
+		UpdatePointPastJump();
 	}
 	else
 	{
-		ImGui::InputDouble("jump time", &params.JumpTime);
+		ImGui::InputDouble("jump time", &params.JumpTime, 0.1, 0.1);
+		curve->RecalculateAllTemporaryJumpValues();
+		UpdatePointPastJump();
 	}
 }
 
@@ -45,7 +50,7 @@ void PhaseJump::CalculateMovingAverage()
 	movingAveragePhase = MovingAverage(phase, params.movingAverageWindowSize);
 }
 
-void PhaseJump::CalculateTemporaryJumpValues()
+void PhaseJump::CalculateTemporaryJumpValue()
 {
 	double usedJumpTime = params.JumpTime;
 	if (useIndividualJumpTime)
@@ -59,6 +64,9 @@ void PhaseJump::CalculateTemporaryJumpValues()
 	//std::cout << "phase before: " << phaseBefore << std::endl;
 	double phaseAfter = movingAveragePhase.at(TimeToIndex(time, usedJumpTime + params.timePassedJump) - indexOffset);
 	temporaryJumpValue = phaseAfter - phaseBefore;
+
+	if (params.useJumpBack)
+		temporaryJumpValue = -temporaryJumpValue;
 }
 
 void PhaseJump::AddTempValueToList()
@@ -113,14 +121,14 @@ void PhaseJump::Plot()
 			{
 				ClampJumpTimeToAllowedRange();
 				UpdatePointPastJump();
-				CalculateTemporaryJumpValues();
+				CalculateTemporaryJumpValue();
 			}
 			if (ImPlot::DragLineX(1, &params.timePointPassedJump, colorPast, 1, ImPlotDragToolFlags_Delayed))
 			{
 				params.timePointPassedJump = std::clamp(params.timePointPassedJump, individualJumpTime, time.back() - time.at(std::floor(params.movingAverageWindowSize / 2)));
 				params.timePassedJump = params.timePointPassedJump - individualJumpTime;
 				ClampJumpTimeToAllowedRange();
-				CalculateTemporaryJumpValues();
+				CalculateTemporaryJumpValue();
 			}
 			ImPlot::TagX(individualJumpTime, color, "jump");
 		}
@@ -188,4 +196,10 @@ void PhaseJump::LoadFromFile(std::filesystem::path inputfile)
 
 		CalculateMovingAverage();
 	}
+	else
+	{
+		std::cout << " error opening file:" << inputfile << std::endl;
+	}
 }
+
+

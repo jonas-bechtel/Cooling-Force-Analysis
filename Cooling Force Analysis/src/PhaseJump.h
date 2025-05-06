@@ -12,6 +12,7 @@ struct JumpEvaluationParameter
 	bool plotMovingAverage = true;
 
 	static double timePointPassedJump;
+
 };
 
 struct PhaseJump
@@ -19,7 +20,7 @@ struct PhaseJump
 	bool ShowAsListItem(bool selected);
 	void ShowParameterInputs();
 	void CalculateMovingAverage();
-	void CalculateTemporaryJumpValues();
+	void CalculateTemporaryJumpValue();
 	void AddTempValueToList();
 	void ClearValueList();
 	void ClampJumpTimeToAllowedRange();
@@ -43,7 +44,7 @@ struct PhaseJump
 
 	// individual time of jumps for some Data
 	bool useIndividualJumpTime = false;
-	double individualJumpTime = 0;
+	double individualJumpTime = 1;
 	
 	// resulting values
 	double phaseJumpValue = 0;

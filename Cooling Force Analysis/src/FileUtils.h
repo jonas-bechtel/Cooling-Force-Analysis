@@ -10,6 +10,7 @@ namespace FileUtils
 
 	std::string GetHeaderFromFile(std::ifstream& file);
 	std::vector<std::string> SplitLine(std::string& line, const std::string& delimiter);
+	std::string RemoveLeadingTrailingSpaces(const std::string& str);
 
 	int GetNumberFromFilename(const std::string& filename);
 }

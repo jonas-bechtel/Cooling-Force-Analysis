@@ -9,6 +9,9 @@ public:
 	void ShowParameterInputs();
 	void ShowCurrentPhaseJumpParameters();
 
+	void SetName(std::string newName);
+	std::string GetName();
+
 	void RecalculateAllForcesAndDetungingVels();
 	void RecalculateAllMovingAverages();
 	void RecalculateAllTemporaryJumpValues();
@@ -22,10 +25,10 @@ public:
 	void Plot() const;
 	void PlotSelectedJump();
 
-	//void Save();
+	void Save();
 	void LoadPhaseJumpFolder(std::filesystem::path folder);
 	void LoadLabEnergiesFile(std::filesystem::path inputFile);
-	//void LoadFromFile(std::filesystem::path file);
+	void LoadFromFile(std::filesystem::path file);
 
 private:
 	void SelectedItemChanged();

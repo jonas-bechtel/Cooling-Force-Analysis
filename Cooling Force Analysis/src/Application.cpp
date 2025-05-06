@@ -214,7 +214,7 @@ void Application::ShowPlots()
 
 void Application::ShowControls()
 {
-    ImGui::PushItemWidth(100.0f);
+    ImGui::PushItemWidth(120.0f);
     bool parametersChanged = false;
     if (ImGui::InputInt("moving average window size", &PhaseJump::params.movingAverageWindowSize, 2, 2))
     {
@@ -232,13 +232,17 @@ void Application::ShowControls()
     }
 
     ImGui::Checkbox("show jump line", &PhaseJump::params.showJumpLine);
-    ImGui::Checkbox("use jump back", &PhaseJump::params.useJumpBack);
+    if (ImGui::Checkbox("use jump back", &PhaseJump::params.useJumpBack))
+    {
+        curve.RecalculateAllTemporaryJumpValues();
+    }
     ImGui::Checkbox("plot moving average", &PhaseJump::params.plotMovingAverage);
     
     ImGui::SeparatorText("phase jump parameters");
     curve.ShowCurrentPhaseJumpParameters();
-
     ImGui::PopItemWidth();
+
+    ImGui::SeparatorText("Output");
     if (ImGui::Button("add current jump values to list"))
     {
         curve.AddAllTempJumpValuesToList();
@@ -248,5 +252,22 @@ void Application::ShowControls()
     {
         curve.ClearAllValueList();
     }
+
+    // Define buffer length based on a reasonable limit
+    char buffer[64];  // Ensure buffer is large enough
+    std::strncpy(buffer, curve.GetName().c_str(), sizeof(buffer) - 1);
+    buffer[sizeof(buffer) - 1] = '\0';  // Null-terminate the buffer
+
+    ImGui::SetNextItemWidth(200.0f);
+    if(ImGui::InputText("curve filename", buffer, sizeof(buffer)))
+    {
+        curve.SetName(std::string(buffer)); // Update std::string with the modified buffer
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("save"))
+    {
+        curve.Save();
+    }
+    
 }
 

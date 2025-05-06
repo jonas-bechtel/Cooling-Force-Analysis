@@ -41,10 +41,10 @@ void Curve::ShowJumpList()
 		ImGui::SameLine();
 		if (ImGui::Button("load cool curve"))
 		{
-			std::filesystem::path file = FileUtils::SelectFile(FileUtils::GetCoolingForceCurveFolder());
+			std::filesystem::path file = FileUtils::SelectFile(FileUtils::GetCoolingForceCurveFolder(), {"*.curve"});
 			if (!file.empty())
 			{
-				//LoadFromFile(file);
+				LoadFromFile(file);
 			}
 		}
 		ImGui::SameLine();
@@ -89,6 +89,16 @@ void Curve::ShowCurrentPhaseJumpParameters()
 	}
 }
 
+void Curve::SetName(std::string newName)
+{
+	name = newName;
+}
+
+std::string Curve::GetName()
+{
+	return name;
+}
+
 void Curve::RecalculateAllForcesAndDetungingVels()
 {
 	for (int i = 0; i < jumpValues.size(); i++)
@@ -115,7 +125,7 @@ void Curve::RecalculateAllTemporaryJumpValues()
 {
 	for (PhaseJump& jump : jumps)
 	{
-		jump.CalculateTemporaryJumpValues();
+		jump.CalculateTemporaryJumpValue();
 	}
 }
 
@@ -203,6 +213,45 @@ void Curve::PlotSelectedJump()
 	}
 }
 
+void Curve::Save()
+{
+	std::filesystem::path outfolder = FileUtils::GetCoolingForceCurveFolder();
+
+	if (!std::filesystem::exists(outfolder))
+	{
+		std::filesystem::create_directories(outfolder);
+	}
+
+	std::filesystem::path file = outfolder / (name + ".curve");
+	std::ofstream outfile(file);
+
+	if (!outfile.is_open())
+	{
+		std::cerr << "Error opening file" << std::endl;
+		return;
+	}
+
+	outfile << "# data folder: " << jumpDataFolder.string() << "\n";
+	outfile << "# lab energy file: " << labEnergyFile.string() << "\n";
+	outfile << "# ion charge: " << ionCharge << "\n";
+	outfile << "# cooling energy [eV]: " << coolingEnergy << "\n";
+	outfile << "# effective bunching voltage [V]: " << effectiveBunchingVoltage << "\n";
+	outfile << "# filename\tdetuning velocity [m/s]\tcooling force value [eV/m]\tcooling force error[eV/m]\tlab energy [eV]\tphase jump value [deg]\tphase jump error [deg]\n";
+
+	for (int i = 0; i < detuningVelocities.size(); i++)
+	{
+		outfile << jumps.at(i).filename << "\t"
+			<< detuningVelocities.at(i) << "\t"
+			<< coolingForceValues.at(i) << "\t"
+			<< coolingForceErrors.at(i) << "\t"
+			<< labEnergies.at(i) << "\t"
+			<< jumpValues.at(i) << "\t"
+			<< jumpValueErrors.at(i) << "\n";
+	}
+
+	outfile.close();
+}
+
 void Curve::LoadPhaseJumpFolder(std::filesystem::path inputFolder)
 {
 	jumps.clear();
@@ -236,6 +285,7 @@ void Curve::LoadPhaseJumpFolder(std::filesystem::path inputFolder)
 		}
 		
 		jumpDataFolder = inputFolder.parent_path().filename() / inputFolder.filename();
+		name = inputFolder.parent_path().filename().string() + "_" + inputFolder.filename().string();
 	}
 	RecalculateAllTemporaryJumpValues();
 }
@@ -262,6 +312,64 @@ void Curve::LoadLabEnergiesFile(std::filesystem::path inputFile)
 		file.close();
 
 		labEnergyFile = inputFile.filename().string();
+	}
+}
+
+void Curve::LoadFromFile(std::filesystem::path inputFile)
+{
+	jumps.clear();
+	jumpValues.clear();
+	jumpValueErrors.clear();
+
+	coolingForceValues.clear();
+	coolingForceErrors.clear();
+
+	labEnergies.clear();
+	detuningVelocities.clear();
+
+	std::ifstream file;
+	file.open(inputFile, std::ios::in);
+
+	if (file.is_open())
+	{
+		std::string header = FileUtils::GetHeaderFromFile(file);
+		std::vector<std::string> tokens = FileUtils::SplitLine(header, "\n");
+		jumpDataFolder = std::filesystem::path(FileUtils::RemoveLeadingTrailingSpaces(FileUtils::SplitLine(tokens[0], ":")[1]));
+		labEnergyFile = std::filesystem::path(FileUtils::SplitLine(tokens[1], ":")[1]);
+		ionCharge = std::stoi(FileUtils::SplitLine(tokens[2], ":")[1]);
+		coolingEnergy = std::stod(FileUtils::SplitLine(tokens[3], ":")[1]);
+		effectiveBunchingVoltage = std::stod(FileUtils::SplitLine(tokens[4], ":")[1]);
+
+		std::string line;
+
+		while (std::getline(file, line))
+		{
+			std::vector<std::string> tokens = FileUtils::SplitLine(line, "\t");
+			std::string filename = tokens[0];
+			double detuningVelocity = std::stod(tokens[1]);
+			double coolingForceValue = std::stod(tokens[2]);
+			double coolingForceError = std::stod(tokens[3]);
+			double labEnergy = std::stod(tokens[4]);
+			double jumpValue = std::stod(tokens[5]);
+			double jumpValueError = std::stod(tokens[6]);
+
+			PhaseJump jump;
+			jump.LoadFromFile(FileUtils::GetDataFolder() / jumpDataFolder / filename);
+			AddPhaseJump(jump);
+
+			jumpValues.back() = jumpValue;
+			jumpValueErrors.back() = jumpValueError;
+
+			coolingForceValues.back() = coolingForceValue;
+			coolingForceErrors.back() = coolingForceError;
+
+			labEnergies.push_back(labEnergy);
+			detuningVelocities.push_back(detuningVelocity);
+		}
+
+		file.close();
+
+		name = inputFile.filename().string();
 	}
 }
 
