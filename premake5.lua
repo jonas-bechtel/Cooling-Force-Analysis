@@ -20,6 +20,7 @@ group "Dependencies"
 	include "Cooling Force Analysis/vendor/tinyfiledialogs"
 	include "Cooling Force Analysis/vendor/imgui"
 	include "Cooling Force Analysis/vendor/implot"
+	include "Cooling Force Analysis/vendor/yaml-cpp"
 group ""
 
 group "Core"

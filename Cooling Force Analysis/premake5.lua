@@ -23,7 +23,8 @@ project "Cooling Force Analysis"
 		"%{wks.location}/Cooling Force Analysis/vendor/imgui/backends",
 		"%{wks.location}/Cooling Force Analysis/vendor/implot",
 		"%{wks.location}/Cooling Force Analysis/vendor/tinyfiledialogs",
-		"%{wks.location}/Cooling Force Analysis/vendor/ROOT/include"
+		"%{wks.location}/Cooling Force Analysis/vendor/ROOT/include",
+		"%{wks.location}/Cooling Force Analysis/vendor/yaml-cpp/include/yaml-cpp"
 	}
 
 	libdirs 
@@ -36,6 +37,7 @@ project "Cooling Force Analysis"
 		"imgui",
 		"implot",
 		"tinyfiledialogs",
+		"yaml-cpp",
 		"libCore",
 		"libRIO",
 		"libHist",

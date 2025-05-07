@@ -43,5 +43,5 @@ def process_directory(directory_path):
             
 
 if __name__ == "__main__":
-    directory_to_process = '.\\..\\data' 
+    directory_to_process = '.\\..\\data\\OH+' 
     process_directory(directory_to_process)

@@ -369,7 +369,7 @@ void Curve::LoadFromFile(std::filesystem::path inputFile)
 
 		file.close();
 
-		name = inputFile.filename().string();
+		name = inputFile.filename().replace_extension().string();
 	}
 }
 

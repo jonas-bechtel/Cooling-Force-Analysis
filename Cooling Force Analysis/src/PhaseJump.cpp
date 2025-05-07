@@ -47,6 +47,7 @@ void PhaseJump::ShowParameterInputs()
 
 void PhaseJump::CalculateMovingAverage()
 {
+	params.movingAverageWindowSize = std::clamp(params.movingAverageWindowSize, 1, (int)(phase.size() / 2));
 	movingAveragePhase = MovingAverage(phase, params.movingAverageWindowSize);
 }
 
