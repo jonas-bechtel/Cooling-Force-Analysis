@@ -5,3 +5,6 @@
 	path = Cooling Force Analysis/vendor/imgui
 	url = https://github.com/jonas-bechtel/imgui.git
 	branch = docking
+[submodule "Cooling Force Analysis/vendor/yaml-cpp"]
+	path = Cooling Force Analysis/vendor/yaml-cpp
+	url = https://github.com/jonas-bechtel/yaml-cpp.git
