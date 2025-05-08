@@ -52,10 +52,12 @@ struct PhaseJump
 
 	// additional info
 	std::string filename;
+	int index = -1;
 	Curve* curve = nullptr;
 
 	// evaluation parameter
 	static JumpEvaluationParameter params;
 
+	
 };
 

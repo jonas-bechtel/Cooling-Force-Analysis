@@ -3,6 +3,8 @@
 #include "imgui_impl_dx12.h"
 #include "Curve.h"
 
+#include "yaml-cpp/yaml.h"
+
 class Application
 {
 public:

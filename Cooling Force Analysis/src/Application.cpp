@@ -216,7 +216,7 @@ void Application::ShowControls()
 {
     ImGui::PushItemWidth(120.0f);
     bool parametersChanged = false;
-    if (ImGui::InputInt("moving average window size", &PhaseJump::params.movingAverageWindowSize, 2, 2))
+    if (ImGui::InputInt("moving average window size", &PhaseJump::params.movingAverageWindowSize, 2, 51))
     {
         parametersChanged = true;
         PhaseJump::params.movingAverageWindowSize = max(1, PhaseJump::params.movingAverageWindowSize);

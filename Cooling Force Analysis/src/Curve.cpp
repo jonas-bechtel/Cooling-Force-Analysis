@@ -4,6 +4,34 @@
 #include "Constants.h"
 #include "HelpFunctions.h"
 
+YAML::Node Curve::parameterMap;
+
+void printYamlNode(const YAML::Node& node, const std::string& indent = "") {
+	if (node.IsMap()) {
+		// Iterate over the key-value pairs in the map
+		for (const auto& kv : node) {
+			std::cout << indent << kv.first.as<std::string>() << ": ";
+			printYamlNode(kv.second, indent + "  ");
+		}
+	}
+	else if (node.IsSequence()) {
+		// Iterate over the elements in the sequence
+		for (size_t i = 0; i < node.size(); ++i) {
+			std::cout << indent << "- ";
+			printYamlNode(node[i], indent + "  ");
+		}
+	}
+	else if (node.IsScalar()) {
+		// Print scalar values directly
+		std::cout << node.as<std::string>() << std::endl;
+	}
+}
+
+Curve::Curve()
+{
+	parameterMap = YAML::LoadFile(FileUtils::GetParameterMapFile().string());
+}
+
 void Curve::ShowJumpList()
 {
 	ImGuiChildFlags flags = ImGuiChildFlags_Border | ImGuiChildFlags_ResizeX | ImGuiChildFlags_ResizeY;
@@ -35,7 +63,16 @@ void Curve::ShowJumpList()
 			std::filesystem::path folder = FileUtils::SelectFolder(FileUtils::GetDataFolder());
 			if (!folder.empty())
 			{
+				std::filesystem::path energyFile = FileUtils::FindFileWithSubstring(folder, "lab_energies");
 				LoadPhaseJumpFolder(folder);
+				if (!energyFile.empty())
+				{
+					LoadLabEnergiesFile(energyFile);
+				}
+				else
+				{
+					std::cout << "no energy file found in " << folder << std::endl;
+				}
 			}
 		}
 		ImGui::SameLine();
@@ -70,7 +107,13 @@ void Curve::ShowParameterInputs()
 	ImGui::BeginGroup();
 	ImGui::PushItemWidth(100.0f);
 	changed |= ImGui::InputInt("ion charge", &ionCharge);
-	changed |= ImGui::InputDouble("effective bunching voltage", &effectiveBunchingVoltage, 0, 0, "%.3f");
+	changed |= ImGui::Checkbox("use direct eff bunching voltage", &useDirectBunchingVoltage);
+	ImGui::BeginDisabled(!useDirectBunchingVoltage);
+	changed |= ImGui::InputDouble("effective bunching voltage direct", &effectiveBunchingVoltageDirect, 0, 0, "%.3f");
+	ImGui::EndDisabled();
+	ImGui::BeginDisabled(useDirectBunchingVoltage);
+	changed |= ImGui::InputDouble("effective bunching voltage sync", &effectiveBunchingVoltageSync, 0, 0, "%.3f");
+	ImGui::EndDisabled();
 	changed |= ImGui::InputDouble("cooling energy", &coolingEnergy, 0, 0, "%.4f");
 	ImGui::PopItemWidth();
 	ImGui::EndGroup();
@@ -101,6 +144,7 @@ std::string Curve::GetName()
 
 void Curve::RecalculateAllForcesAndDetungingVels()
 {
+	double effectiveBunchingVoltage = useDirectBunchingVoltage ? effectiveBunchingVoltageDirect : effectiveBunchingVoltageSync;
 	for (int i = 0; i < jumpValues.size(); i++)
 	{
 		coolingForceValues.at(i) = CalculateCoolingForce(jumpValues.at(i), effectiveBunchingVoltage, ionCharge);
@@ -173,11 +217,14 @@ void Curve::AddPhaseJump(PhaseJump& jump)
 	jumpValues.push_back(jump.phaseJumpValue);
 	jumpValueErrors.push_back(jump.phaseJumpValueError);
 
+	double effectiveBunchingVoltage = useDirectBunchingVoltage ? effectiveBunchingVoltageDirect : effectiveBunchingVoltageSync;
+
 	coolingForceValues.push_back(CalculateCoolingForce(jump.phaseJumpValue, effectiveBunchingVoltage, ionCharge));
 	coolingForceErrors.push_back(CalculateCoolingForceError(jump.phaseJumpValue, jump.phaseJumpValueError, effectiveBunchingVoltage, ionCharge));
 
 	jump.curve = this;
 
+	jump.index = jumps.size();
 	// will call move Constructor
 	jumps.emplace_back(std::move(jump));
 
@@ -196,9 +243,11 @@ void Curve::Plot() const
 	if (selectedIndex >= 0 && !detuningVelocities.empty() && !coolingForceValues.empty())
 	{
 		ImPlot::PushStyleColor(ImPlotCol_MarkerFill, ImVec4(1, 0, 0, 1));
-		double selectedDetuningVel = detuningVelocities.at(selectedIndex);
-		double selectedForceValue = coolingForceValues.at(selectedIndex);
+		ImPlot::PushStyleVar(ImPlotStyleVar_MarkerSize, 5);
+		double selectedDetuningVel = detuningVelocities.at(selectedIndex % detuningVelocities.size());
+		double selectedForceValue = coolingForceValues.at(selectedIndex % detuningVelocities.size());
 		ImPlot::PlotScatter("##selected", &selectedDetuningVel, &selectedForceValue, 1);
+		ImPlot::PopStyleVar();
 		ImPlot::PopStyleColor();
 	}
 	
@@ -235,7 +284,8 @@ void Curve::Save()
 	outfile << "# lab energy file: " << labEnergyFile.string() << "\n";
 	outfile << "# ion charge: " << ionCharge << "\n";
 	outfile << "# cooling energy [eV]: " << coolingEnergy << "\n";
-	outfile << "# effective bunching voltage [V]: " << effectiveBunchingVoltage << "\n";
+	outfile << "# effective bunching voltage direct [V]: " << effectiveBunchingVoltageDirect << "\n";
+	outfile << "# effective bunching voltage sync [V]: " << effectiveBunchingVoltageSync << "\n";
 	outfile << "# filename\tdetuning velocity [m/s]\tcooling force value [eV/m]\tcooling force error[eV/m]\tlab energy [eV]\tphase jump value [deg]\tphase jump error [deg]\n";
 
 	for (int i = 0; i < detuningVelocities.size(); i++)
@@ -266,7 +316,7 @@ void Curve::LoadPhaseJumpFolder(std::filesystem::path inputFolder)
 		std::vector<std::filesystem::path> files;
 		for (const auto& entry : std::filesystem::directory_iterator(inputFolder))
 		{
-			if (entry.is_regular_file() && (entry.path().extension() == ".CSV" || entry.path().extension() == ".csv"))
+			if (entry.is_regular_file() && entry.path().extension() == ".csv")
 			{
 				files.push_back(entry.path());
 			}
@@ -286,6 +336,8 @@ void Curve::LoadPhaseJumpFolder(std::filesystem::path inputFolder)
 		
 		jumpDataFolder = inputFolder.parent_path().filename() / inputFolder.filename();
 		name = inputFolder.parent_path().filename().string() + "_" + inputFolder.filename().string();
+
+		LoadParameterFromMap();
 	}
 	RecalculateAllTemporaryJumpValues();
 }
@@ -338,7 +390,8 @@ void Curve::LoadFromFile(std::filesystem::path inputFile)
 		labEnergyFile = std::filesystem::path(FileUtils::SplitLine(tokens[1], ":")[1]);
 		ionCharge = std::stoi(FileUtils::SplitLine(tokens[2], ":")[1]);
 		coolingEnergy = std::stod(FileUtils::SplitLine(tokens[3], ":")[1]);
-		effectiveBunchingVoltage = std::stod(FileUtils::SplitLine(tokens[4], ":")[1]);
+		effectiveBunchingVoltageDirect = std::stod(FileUtils::SplitLine(tokens[4], ":")[1]);
+		effectiveBunchingVoltageSync = std::stod(FileUtils::SplitLine(tokens[5], ":")[1]);
 
 		std::string line;
 
@@ -371,6 +424,37 @@ void Curve::LoadFromFile(std::filesystem::path inputFile)
 
 		name = inputFile.filename().replace_extension().string();
 	}
+}
+
+void Curve::LoadParameterFromMap()
+{
+	try
+	{
+		std::string ionTypeFolder = jumpDataFolder.parent_path().filename().string();
+		std::string runNumber = jumpDataFolder.filename().string().substr(3, 4);
+		if (!parameterMap.IsMap())
+		{
+			std::cout << "parameter Map is not a map" << std::endl;
+			return;
+		}
+
+		if (parameterMap[ionTypeFolder].IsDefined() && parameterMap[ionTypeFolder][runNumber])
+		{
+			coolingEnergy = parameterMap[ionTypeFolder][runNumber]["E_cool_eV"].as<double>();
+			effectiveBunchingVoltageDirect = parameterMap[ionTypeFolder][runNumber]["U_eff_direct_V"].as<double>();
+			effectiveBunchingVoltageSync = parameterMap[ionTypeFolder][runNumber]["U_eff_sync_V"].as<double>();
+			//ionCharge = map[ionTypeFolder][runNumber]["E_cool_eV"].as<double>();
+		}
+		else
+		{
+			std::cout << "Parameter file does not include " << ionTypeFolder << " " << runNumber << std::endl;
+		}
+	}
+	catch (const YAML::Exception& e)
+	{
+		std::cerr << "Error parsing YAML file: " << e.what() << std::endl;
+	}
+	
 }
 
 void Curve::SelectedItemChanged()

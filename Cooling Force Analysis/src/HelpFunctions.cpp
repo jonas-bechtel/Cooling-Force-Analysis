@@ -2,9 +2,9 @@
 #include "HelpFunctions.h"
 #include "Constants.h"
 
-double CalculateDetuningVelocity(double coolingEenrgy, double labEnergy)
+double CalculateDetuningVelocity(double coolingEnergy, double labEnergy)
 {
-    return sqrt(2 / PhysicalConstants::electronMass) * (sqrt(coolingEenrgy * TMath::Qe()) - sqrt(labEnergy * TMath::Qe()));
+    return sqrt(2 / PhysicalConstants::electronMass) * (sqrt(coolingEnergy * TMath::Qe()) - sqrt(labEnergy * TMath::Qe()));
 }
 
 double CalculateCoolingForce(double phaseJump, double effectiveBunchingVoltage, int ionCharge)

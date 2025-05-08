@@ -72,11 +72,19 @@ void PhaseJump::CalculateTemporaryJumpValue()
 
 void PhaseJump::AddTempValueToList()
 {
-	jumpValueList.push_back(temporaryJumpValue);
-	
+	int numberPoints = curve->labEnergies.size();
+	if (index >= numberPoints)
+		return;
+
+	// check for multiple versions of the same jump and add their values to the first version
+	for (int i = index; i < curve->jumps.size(); i += numberPoints)
+	{
+		PhaseJump& jump = curve->jumps.at(i);
+		jumpValueList.push_back(jump.temporaryJumpValue);
+	}
+
 	phaseJumpValue = CalculateMean(jumpValueList);
 	phaseJumpValueError = CalculateStdDev(jumpValueList);
-
 }
 
 void PhaseJump::ClearValueList()

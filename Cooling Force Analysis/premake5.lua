@@ -10,6 +10,8 @@ project "Cooling Force Analysis"
 	pchheader "pch.h"
 	pchsource "src/pch.cpp"
 
+	defines { "YAML_CPP_STATIC_DEFINE" }
+
 	files	
 	{
 		"src/**.h",
@@ -24,7 +26,7 @@ project "Cooling Force Analysis"
 		"%{wks.location}/Cooling Force Analysis/vendor/implot",
 		"%{wks.location}/Cooling Force Analysis/vendor/tinyfiledialogs",
 		"%{wks.location}/Cooling Force Analysis/vendor/ROOT/include",
-		"%{wks.location}/Cooling Force Analysis/vendor/yaml-cpp/include/yaml-cpp"
+		"%{wks.location}/Cooling Force Analysis/vendor/yaml-cpp/include"
 	}
 
 	libdirs 

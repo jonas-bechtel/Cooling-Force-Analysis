@@ -8,6 +8,7 @@ namespace FileUtils
     static std::filesystem::path dataFolder = "data\\";
     static std::filesystem::path outputFolder = "output\\";
     static std::filesystem::path curveFolder = outputFolder / "Cooling Force Curves\\";
+    static std::filesystem::path parameterMapFile = dataFolder / "parameters.yaml";
 
     std::filesystem::path GetDataFolder()
     {
@@ -20,6 +21,11 @@ namespace FileUtils
     std::filesystem::path GetCoolingForceCurveFolder()
     {
         return curveFolder;
+    }
+
+    std::filesystem::path GetParameterMapFile()
+    {
+        return parameterMapFile;
     }
 
     std::filesystem::path SelectFile(const std::filesystem::path& startPath, const std::vector<const char*>& filterPatterns)
@@ -108,5 +114,21 @@ namespace FileUtils
             return std::stoi(match.str(1));  // Convert matched number to integer
         }
         return -1;  // Return -1 if no pattern match (to handle errors logically)
+    }
+
+    std::filesystem::path FindFileWithSubstring(const std::filesystem::path& folderPath, const std::string& searchString)
+    {
+        for (const auto& entry : std::filesystem::directory_iterator(folderPath))
+        {
+            if (entry.is_regular_file()) 
+            {
+                const std::string fileName = entry.path().filename().string();
+                if (fileName.find(searchString) != std::string::npos) 
+                {
+                    return entry.path();
+                }
+            }
+        }
+        return std::filesystem::path(); // Return an empty path if no match is found
     }
 }
