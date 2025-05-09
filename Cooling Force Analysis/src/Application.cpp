@@ -237,6 +237,7 @@ void Application::ShowControls()
         curve.RecalculateAllTemporaryJumpValues();
     }
     ImGui::Checkbox("plot moving average", &PhaseJump::params.plotMovingAverage);
+    ImGui::Checkbox("plot signal amplitude", &PhaseJump::params.plotRadius);
     
     ImGui::SeparatorText("phase jump parameters");
     curve.ShowCurrentPhaseJumpParameters();

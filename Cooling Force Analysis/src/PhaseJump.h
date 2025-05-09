@@ -10,6 +10,7 @@ struct JumpEvaluationParameter
 	bool useJumpBack = false;
 	bool showJumpLine = true;
 	bool plotMovingAverage = true;
+	bool plotRadius = false;
 
 	static double timePointPassedJump;
 

@@ -237,6 +237,7 @@ void Curve::AddPhaseJump(PhaseJump& jump)
 
 void Curve::Plot() const
 {
+	ImPlot::SetupAxes("Detuning Velocity [m/s]", "Cooling Force || [eV/m]");
 	ImPlot::PlotScatter(name.c_str(), detuningVelocities.data(), coolingForceValues.data(), detuningVelocities.size());
 	ImPlot::PlotErrorBars(name.c_str(), detuningVelocities.data(), coolingForceValues.data(), coolingForceErrors.data(), std::min(detuningVelocities.size(), coolingForceValues.size()));
 

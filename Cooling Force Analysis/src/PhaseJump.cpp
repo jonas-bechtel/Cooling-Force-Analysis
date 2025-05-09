@@ -114,6 +114,21 @@ void PhaseJump::UpdatePointPastJump()
 void PhaseJump::Plot()
 {
 	ImPlot::SetupAxes("Time [s]", "Phase [deg]");
+
+	if (params.plotRadius)
+	{
+		ImPlot::SetupAxis(ImAxis_Y2, "signal amplitude [V]"); 
+
+		ImPlot::SetAxis(ImAxis_Y2);
+		ImPlot::PushStyleColor(ImPlotCol_MarkerFill, ImPlot::GetColormapColor(1));
+		ImPlot::PushStyleColor(ImPlotCol_MarkerOutline, ImPlot::GetColormapColor(1));
+		ImPlot::PlotScatter(filename.c_str(), time.data(), radius.data(), time.size());
+		ImPlot::PopStyleColor();
+		ImPlot::PopStyleColor();
+
+		ImPlot::SetAxis(ImAxis_Y1);
+	}
+
 	ImPlot::PushStyleColor(ImPlotCol_MarkerFill, ImPlot::GetColormapColor(0));
 	ImPlot::PushStyleColor(ImPlotCol_MarkerOutline, ImPlot::GetColormapColor(0));
 	ImPlot::PlotScatter(filename.c_str(), time.data(), phase.data(), time.size());
