@@ -57,6 +57,7 @@ int TimeToIndex(const std::vector<double>& list, double time)
 double CalculateMean(const std::vector<double>& data)
 {
     double sum = std::accumulate(data.begin(), data.end(), 0.0);
+
     return sum / data.size();
 }
 

@@ -122,6 +122,20 @@ void Curve::ShowParameterInputs()
 	{
 		RecalculateAllForcesAndDetungingVels();
 	}
+	ImGui::Separator();
+	if (ImGui::Button("Fit Slope"))
+	{
+		FitSlope();
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Clear Slopes"))
+	{
+		ClearSlopeList();
+	}
+	ImGui::SameLine();
+	ImGui::Checkbox("show fit range", &showSlopeFitRange);
+
+	ImGui::Text("Slope: (%.3e +- %.3e) eV s/m^2", finalSlopeValue, finalSlopeError);
 }
 
 void Curve::ShowCurrentPhaseJumpParameters()
@@ -235,7 +249,7 @@ void Curve::AddPhaseJump(PhaseJump& jump)
 	}
 }
 
-void Curve::Plot() const
+void Curve::Plot()
 {
 	ImPlot::SetupAxes("Detuning Velocity [m/s]", "Cooling Force || [eV/m]");
 	ImPlot::PlotScatter(name.c_str(), detuningVelocities.data(), coolingForceValues.data(), detuningVelocities.size());
@@ -252,6 +266,16 @@ void Curve::Plot() const
 		ImPlot::PopStyleColor();
 	}
 	
+	if (showSlopeFitRange)
+	{
+		ImVec4 color = ImVec4(1, 0, 0, 1);
+		ImPlot::DragLineX(0, &currentFitRange[0], color, 1, ImPlotDragToolFlags_Delayed);
+		ImPlot::DragLineX(1, &currentFitRange[1], color, 1, ImPlotDragToolFlags_Delayed);
+		ImPlot::TagX(currentFitRange[0], color, "fit start");
+		ImPlot::TagX(currentFitRange[1], color, "fit end");
+
+		PlotSlopes();
+	}
 }
 
 void Curve::PlotSelectedJump()
@@ -260,6 +284,19 @@ void Curve::PlotSelectedJump()
 	{
 		jumps.at(selectedIndex).Plot();
 		jumps.at(selectedIndex).PlotMovingAverage();
+	}
+}
+
+void Curve::PlotSlopes()
+{
+	for (int i = 0; i < slopeValues.size(); i++)
+	{
+		double x[2] = { fitRanges.at(2 * i),fitRanges.at(2 * i + 1) };
+		double y[2] = { offsetValues.at(i) + slopeValues.at(i) * x[0], offsetValues.at(i) + slopeValues.at(i) * x[1] };
+
+		ImGui::PushID(i);
+		ImPlot::PlotLine("##slope", x, y, 2);
+		ImGui::PopID();
 	}
 }
 
@@ -287,6 +324,8 @@ void Curve::Save()
 	outfile << "# cooling energy [eV]: " << coolingEnergy << "\n";
 	outfile << "# effective bunching voltage direct [V]: " << effectiveBunchingVoltageDirect << "\n";
 	outfile << "# effective bunching voltage sync [V]: " << effectiveBunchingVoltageSync << "\n";
+	outfile << "# slope value [eV s/m^2]: " << finalSlopeValue << "\n";
+	outfile << "# slope error [eV s/m^2]: " << finalSlopeError << "\n";
 	outfile << "# filename\tdetuning velocity [m/s]\tcooling force value [eV/m]\tcooling force error[eV/m]\tlab energy [eV]\tphase jump value [deg]\tphase jump error [deg]\n";
 
 	for (int i = 0; i < detuningVelocities.size(); i++)
@@ -311,6 +350,8 @@ void Curve::LoadPhaseJumpFolder(std::filesystem::path inputFolder)
 	
 	coolingForceValues.clear();
 	coolingForceErrors.clear();
+
+	ClearSlopeList();
 
 	if (std::filesystem::is_directory(inputFolder))
 	{
@@ -380,6 +421,8 @@ void Curve::LoadFromFile(std::filesystem::path inputFile)
 	labEnergies.clear();
 	detuningVelocities.clear();
 
+	ClearSlopeList();
+
 	std::ifstream file;
 	file.open(inputFile, std::ios::in);
 
@@ -393,6 +436,8 @@ void Curve::LoadFromFile(std::filesystem::path inputFile)
 		coolingEnergy = std::stod(FileUtils::SplitLine(tokens[3], ":")[1]);
 		effectiveBunchingVoltageDirect = std::stod(FileUtils::SplitLine(tokens[4], ":")[1]);
 		effectiveBunchingVoltageSync = std::stod(FileUtils::SplitLine(tokens[5], ":")[1]);
+		//finalSlopeValue = std::stod(FileUtils::SplitLine(tokens[6], ":")[1]);
+		//finalSlopeError = std::stod(FileUtils::SplitLine(tokens[7], ":")[1]);
 
 		std::string line;
 
@@ -463,3 +508,37 @@ void Curve::SelectedItemChanged()
 	UpdatePointPastJump();
 }
 
+void Curve::FitSlope()
+{
+	// Create a TGraphErrors object
+	TGraphErrors graph = TGraphErrors(coolingForceValues.size(), detuningVelocities.data(), coolingForceValues.data(), nullptr, coolingForceErrors.data());
+
+	// Define the fit function (a linear function)
+	TF1 fitFunc = TF1("slope fit", "pol1", currentFitRange[0], currentFitRange[1]); // "pol1" specifies a first-degree polynomial
+
+	// Perform the fit
+	graph.Fit(&fitFunc, "R"); // "R" specifies fitting in the range
+
+	// Get the slope and y offset
+	double offset = fitFunc.GetParameter(0);
+	double slope = fitFunc.GetParameter(1);
+
+	slopeValues.push_back(slope);
+	offsetValues.push_back(offset);
+	fitRanges.push_back(currentFitRange[0]);
+	fitRanges.push_back(currentFitRange[1]);
+
+	finalSlopeValue = CalculateMean(slopeValues);
+	finalSlopeError = CalculateStdDev(slopeValues);
+}
+
+void Curve::ClearSlopeList()
+{
+	slopeValues.clear();
+	offsetValues.clear();
+	fitRanges.clear();
+	fitRanges.clear();
+
+	finalSlopeValue = 0;
+	finalSlopeError = 0;
+}

@@ -26,6 +26,7 @@
 #include <TLegend.h>
 #include <TMath.h>
 #include <TGraph.h>
+#include <TGraphErrors.h>
 #include <TVector3.h>
 #include <TApplication.h>
 #include <TSystem.h>

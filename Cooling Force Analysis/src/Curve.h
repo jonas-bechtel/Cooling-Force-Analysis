@@ -23,10 +23,14 @@ public:
 	void ClampJumpTimesToAllowedRange();
 	void UpdatePointPastJump();
 
+	void FitSlope();
+	void ClearSlopeList();
+
 	void AddPhaseJump(PhaseJump& jump);
 
-	void Plot() const;
+	void Plot();
 	void PlotSelectedJump();
+	void PlotSlopes();
 
 	void Save();
 	void LoadPhaseJumpFolder(std::filesystem::path folder);
@@ -38,6 +42,7 @@ private:
 	void SelectedItemChanged();
 
 private:
+	// main data
 	std::vector<PhaseJump> jumps;
 	int selectedIndex = -1;
 
@@ -50,13 +55,23 @@ private:
 	std::vector<double> coolingForceValues;
 	std::vector<double> coolingForceErrors;
 
-	// parameter
+	// for slope determination
+	std::vector<double> slopeValues;
+	std::vector<double> offsetValues;
+	std::vector<double> fitRanges;
+	double finalSlopeValue = 0;
+	double finalSlopeError = 0;
+	double currentFitRange[2] = { -1000, 1000 };
+	bool showSlopeFitRange = false;
+
+	// parameters
 	int ionCharge = 1;
 	double coolingEnergy = 1;
 	double effectiveBunchingVoltageDirect = 1;
 	double effectiveBunchingVoltageSync = 1;
 	bool useDirectBunchingVoltage = true;
 
+	// labelling
 	std::string name = "name";
 	std::filesystem::path jumpDataFolder = "jump folder";
 	std::filesystem::path labEnergyFile = "lab energy file";
