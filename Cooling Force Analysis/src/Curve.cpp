@@ -3,6 +3,7 @@
 #include "FileUtils.h"
 #include "Constants.h"
 #include "HelpFunctions.h"
+#include "LabEnergyConversion.h"
 
 YAML::Node Curve::parameterMap;
 
@@ -38,8 +39,8 @@ void Curve::ShowJumpList()
 	if (ImGui::BeginChild("cc tabs", ImVec2(400.0f, -1), flags))
 	{
 		ImGui::Text("jump data folder: %s", jumpDataFolder.string().c_str());
-		ImGui::Text("lab energy file: %s", labEnergyFile.string().c_str());
-		if (ImGui::BeginListBox("##jump list", ImVec2(-1, 500)))
+		ImGui::Text("ctrl voltages file: %s", ctrlVoltagesFile.string().c_str());
+		if (ImGui::BeginListBox("##jump list", ImVec2(-1, 430)))
 		{
 			int i = 0;
 			for (PhaseJump& jump : jumps)
@@ -49,6 +50,16 @@ void Curve::ShowJumpList()
 				{
 					selectedIndex = i;
 					SelectedItemChanged();
+				}
+				
+				if (!ctrlVoltages.empty())
+				{
+					ImGui::SameLine();
+					if(ImGui::SmallButton("x"))
+					{
+						std::cout << "deleting jump: " << jump.filename << std::endl;
+						RemovePhaseJump(i);
+					}
 				}
 				i++;
 				ImGui::PopID();
@@ -63,15 +74,15 @@ void Curve::ShowJumpList()
 			std::filesystem::path folder = FileUtils::SelectFolder(FileUtils::GetDataFolder());
 			if (!folder.empty())
 			{
-				std::filesystem::path energyFile = FileUtils::FindFileWithSubstring(folder, "lab_energies");
+				std::filesystem::path ctrlVoltFile = FileUtils::FindFileWithSubstring(folder, "ctrl_voltages");
 				LoadPhaseJumpFolder(folder);
-				if (!energyFile.empty())
+				if (!ctrlVoltFile.empty())
 				{
-					LoadLabEnergiesFile(energyFile);
+					LoadCtrlVoltagesFile(ctrlVoltFile);
 				}
 				else
 				{
-					std::cout << "no energy file found in " << folder << std::endl;
+					std::cout << "no ctrl voltage found in " << folder << std::endl;
 				}
 			}
 		}
@@ -85,14 +96,14 @@ void Curve::ShowJumpList()
 			}
 		}
 		ImGui::SameLine();
-		if (ImGui::Button("load lab energies"))
+		if (ImGui::Button("load ctrl voltages"))
 		{
 			std::filesystem::path startpath = FileUtils::GetDataFolder() / (jumpDataFolder.string() + "\\");
 			std::cout << startpath << std::endl;
 			std::filesystem::path file = FileUtils::SelectFile(startpath, {"*.txt"});
 			if (!file.empty())
 			{
-				LoadLabEnergiesFile(file);
+				LoadCtrlVoltagesFile(file);
 			}
 		}
 
@@ -104,22 +115,48 @@ void Curve::ShowJumpList()
 void Curve::ShowParameterInputs()
 {
 	bool changed = false;
+	bool coolEnergyChanged = false;
 	ImGui::BeginGroup();
 	ImGui::PushItemWidth(100.0f);
 	changed |= ImGui::InputInt("ion charge", &ionCharge);
 	changed |= ImGui::Checkbox("use direct eff bunching voltage", &useDirectBunchingVoltage);
 	ImGui::BeginDisabled(!useDirectBunchingVoltage);
-	changed |= ImGui::InputDouble("effective bunching voltage direct", &effectiveBunchingVoltageDirect, 0, 0, "%.3f");
+	changed |= ImGui::InputDouble("effective bunching voltage direct [V]", &effectiveBunchingVoltageDirect, 0, 0, "%.3f");
 	ImGui::EndDisabled();
 	ImGui::BeginDisabled(useDirectBunchingVoltage);
-	changed |= ImGui::InputDouble("effective bunching voltage sync", &effectiveBunchingVoltageSync, 0, 0, "%.3f");
+	changed |= ImGui::InputDouble("effective bunching voltage sync [V]", &effectiveBunchingVoltageSync, 0, 0, "%.3f");
 	ImGui::EndDisabled();
-	changed |= ImGui::InputDouble("cooling energy", &coolingEnergy, 0, 0, "%.4f");
+	changed |= ImGui::InputDouble("cooling ctrl voltage [V]", &coolingCtrlVoltage, 0, 0, "%.6f");
+	coolEnergyChanged |= ImGui::InputDouble("cooling energy [eV]", &coolingEnergy, 0, 0, "%.4f");
+	changed |= ImGui::InputDouble("electron current [A]", &electronCurrent, 0, 0, "%.3e");
+	changed |= ImGui::InputDouble("contact offset potential [V]", &contactOffsetPotential, 0, 0, "%.3f");
+	changed |= ImGui::InputDouble("cathode radius [m]", &cathodeRadius, 0, 0, "%.4e");
+	changed |= ImGui::InputDouble("expansion factor", &expansionFactor, 0, 0, "%.3f");
 	ImGui::PopItemWidth();
 	ImGui::EndGroup();
 
-	if (changed)
+	if(coolEnergyChanged)
 	{
+		// recalculate ctrl voltage if cooling energy is changed
+		coolingCtrlVoltage = ConvertLabEnergyToCtrlVoltage(
+			coolingEnergy,
+			contactOffsetPotential,
+			0, // energy correction is not used here
+			electronCurrent,
+			cathodeRadius,
+			expansionFactor
+		);
+	}
+	if (changed || coolEnergyChanged)
+	{
+		coolingEnergy = ConvertCtrlVoltageToLabEnergy(
+			coolingCtrlVoltage,
+			contactOffsetPotential,
+			0, // energy correction is not used here
+			electronCurrent,
+			cathodeRadius,
+			expansionFactor
+		);
 		RecalculateAllForcesAndDetungingVels();
 	}
 	ImGui::Separator();
@@ -189,13 +226,15 @@ void Curve::RecalculateAllTemporaryJumpValues()
 
 void Curve::AddAllTempJumpValuesToList()
 {
-	int i = 0;
-	for (PhaseJump& jump : jumps)
+	//int i = 0;
+	//for (PhaseJump& jump : jumps)
+	for (int i = 0; i < jumps.size(); i++)
 	{
+		PhaseJump& jump = jumps.at(i);
 		jump.AddTempValueToList();
 		jumpValues.at(i) = jump.phaseJumpValue;
 		jumpValueErrors.at(i) = jump.phaseJumpValueError;
-		i++;
+		//i++;
 	}
 	RecalculateAllForcesAndDetungingVels();
 }
@@ -249,6 +288,33 @@ void Curve::AddPhaseJump(PhaseJump& jump)
 	}
 }
 
+void Curve::RemovePhaseJump(int index)
+{
+	if (index < 0 || index >= jumps.size())
+	{
+		std::cerr << "Index out of bounds: " << index << std::endl;
+		return;
+	}
+	jumps.erase(jumps.begin() + index);
+	jumpValues.erase(jumpValues.begin() + index);
+	jumpValueErrors.erase(jumpValueErrors.begin() + index);
+	coolingForceValues.erase(coolingForceValues.begin() + index);
+	coolingForceErrors.erase(coolingForceErrors.begin() + index);
+
+	ctrlVoltages.erase(ctrlVoltages.begin() + index);
+	labEnergies.erase(labEnergies.begin() + index);
+	detuningVelocities.erase(detuningVelocities.begin() + index);
+
+	selectedIndex = std::min(selectedIndex, (int)jumps.size() - 1);
+	SelectedItemChanged();
+
+	// update the index of the later jumps
+	for (int i = index; i < jumps.size(); i++)
+	{
+		jumps.at(i).index = i;
+	}
+}
+
 void Curve::Plot()
 {
 	ImPlot::SetupAxes("Detuning Velocity [m/s]", "Cooling Force || [eV/m]");
@@ -268,7 +334,7 @@ void Curve::Plot()
 	
 	if (showSlopeFitRange)
 	{
-		ImVec4 color = ImVec4(1, 0, 0, 1);
+		ImVec4 color = ImVec4(0.1, 0.6, 0.2, 1);
 		ImPlot::DragLineX(0, &currentFitRange[0], color, 1, ImPlotDragToolFlags_Delayed);
 		ImPlot::DragLineX(1, &currentFitRange[1], color, 1, ImPlotDragToolFlags_Delayed);
 		ImPlot::TagX(currentFitRange[0], color, "fit start");
@@ -319,11 +385,17 @@ void Curve::Save()
 	}
 
 	outfile << "# data folder: " << jumpDataFolder.string() << "\n";
-	outfile << "# lab energy file: " << labEnergyFile.string() << "\n";
+	outfile << "# ctrl voltages file: " << ctrlVoltagesFile.string() << "\n";
 	outfile << "# ion charge: " << ionCharge << "\n";
+	outfile << "# cooling ctrl voltage [V]: " << coolingCtrlVoltage << "\n";
 	outfile << "# cooling energy [eV]: " << coolingEnergy << "\n";
 	outfile << "# effective bunching voltage direct [V]: " << effectiveBunchingVoltageDirect << "\n";
 	outfile << "# effective bunching voltage sync [V]: " << effectiveBunchingVoltageSync << "\n";
+	outfile << "# direct bunching voltage used ?: " << (useDirectBunchingVoltage ? "True" : "False") << "\n";
+	outfile << "# electron current [A]: " << electronCurrent << "\n";
+	outfile << "# contact offset potential [V}: " << contactOffsetPotential << "\n";
+	outfile << "# cathode radius [m}: " << cathodeRadius << "\n";
+	outfile << "# expansion factor: " << expansionFactor << "\n";
 	outfile << "# slope value [eV s/m^2]: " << finalSlopeValue << "\n";
 	outfile << "# slope error [eV s/m^2]: " << finalSlopeError << "\n";
 	outfile << "# filename\tdetuning velocity [m/s]\tcooling force value [eV/m]\tcooling force error[eV/m]\tlab energy [eV]\tphase jump value [deg]\tphase jump error [deg]\n";
@@ -384,10 +456,11 @@ void Curve::LoadPhaseJumpFolder(std::filesystem::path inputFolder)
 	RecalculateAllTemporaryJumpValues();
 }
 
-void Curve::LoadLabEnergiesFile(std::filesystem::path inputFile)
+void Curve::LoadCtrlVoltagesFile(std::filesystem::path inputFile)
 {
 	detuningVelocities.clear();
 	labEnergies.clear();
+	ctrlVoltages.clear();
 
 	std::ifstream file;
 	file.open(inputFile, std::ios::in);
@@ -399,13 +472,21 @@ void Curve::LoadLabEnergiesFile(std::filesystem::path inputFile)
 	{
 		while (std::getline(file, line))
 		{
-			labEnergies.push_back(std::stod(line));
-			detuningVelocities.push_back(CalculateDetuningVelocity(coolingEnergy, std::stod(line)));
+			ctrlVoltages.push_back(std::stod(line));
+			labEnergies.push_back(ConvertCtrlVoltageToLabEnergy(
+				ctrlVoltages.back(),
+				contactOffsetPotential,
+				0, // energy correction is not used here
+				electronCurrent,
+				cathodeRadius,
+				expansionFactor
+			));
+			detuningVelocities.push_back(CalculateDetuningVelocity(coolingEnergy, labEnergies.back()));
 		}
 
 		file.close();
 
-		labEnergyFile = inputFile.filename().string();
+		ctrlVoltagesFile = inputFile.filename().string();
 	}
 }
 
@@ -430,14 +511,21 @@ void Curve::LoadFromFile(std::filesystem::path inputFile)
 	{
 		std::string header = FileUtils::GetHeaderFromFile(file);
 		std::vector<std::string> tokens = FileUtils::SplitLine(header, "\n");
+
 		jumpDataFolder = std::filesystem::path(FileUtils::RemoveLeadingTrailingSpaces(FileUtils::SplitLine(tokens[0], ":")[1]));
-		labEnergyFile = std::filesystem::path(FileUtils::SplitLine(tokens[1], ":")[1]);
+		ctrlVoltagesFile = std::filesystem::path(FileUtils::SplitLine(tokens[1], ":")[1]);
 		ionCharge = std::stoi(FileUtils::SplitLine(tokens[2], ":")[1]);
-		coolingEnergy = std::stod(FileUtils::SplitLine(tokens[3], ":")[1]);
-		effectiveBunchingVoltageDirect = std::stod(FileUtils::SplitLine(tokens[4], ":")[1]);
-		effectiveBunchingVoltageSync = std::stod(FileUtils::SplitLine(tokens[5], ":")[1]);
-		//finalSlopeValue = std::stod(FileUtils::SplitLine(tokens[6], ":")[1]);
-		//finalSlopeError = std::stod(FileUtils::SplitLine(tokens[7], ":")[1]);
+		coolingCtrlVoltage = std::stod(FileUtils::SplitLine(tokens[3], ":")[1]);
+		coolingEnergy = std::stod(FileUtils::SplitLine(tokens[4], ":")[1]);
+		effectiveBunchingVoltageDirect = std::stod(FileUtils::SplitLine(tokens[5], ":")[1]);
+		effectiveBunchingVoltageSync = std::stod(FileUtils::SplitLine(tokens[6], ":")[1]);
+		useDirectBunchingVoltage = (FileUtils::SplitLine(tokens[7], ":")[1] == "True") ? true : false;
+		electronCurrent = std::stod(FileUtils::SplitLine(tokens[8], ":")[1]);
+		contactOffsetPotential = std::stod(FileUtils::SplitLine(tokens[9], ":")[1]);
+		cathodeRadius = std::stod(FileUtils::SplitLine(tokens[10], ":")[1]);
+		expansionFactor = std::stod(FileUtils::SplitLine(tokens[11], ":")[1]);
+		finalSlopeValue = std::stod(FileUtils::SplitLine(tokens[12], ":")[1]);
+		finalSlopeError = std::stod(FileUtils::SplitLine(tokens[13], ":")[1]);
 
 		std::string line;
 
@@ -478,18 +566,35 @@ void Curve::LoadParameterFromMap()
 	{
 		std::string ionTypeFolder = jumpDataFolder.parent_path().filename().string();
 		std::string runNumber = jumpDataFolder.filename().string().substr(3, 4);
+
 		if (!parameterMap.IsMap())
 		{
 			std::cout << "parameter Map is not a map" << std::endl;
 			return;
 		}
-
-		if (parameterMap[ionTypeFolder].IsDefined() && parameterMap[ionTypeFolder][runNumber])
+		
+		if (parameterMap[ionTypeFolder] && parameterMap[ionTypeFolder][runNumber] && !parameterMap[ionTypeFolder][runNumber].IsNull()) 
 		{
-			coolingEnergy = parameterMap[ionTypeFolder][runNumber]["E_cool_eV"].as<double>();
-			effectiveBunchingVoltageDirect = parameterMap[ionTypeFolder][runNumber]["U_eff_direct_V"].as<double>();
-			effectiveBunchingVoltageSync = parameterMap[ionTypeFolder][runNumber]["U_eff_sync_V"].as<double>();
-			//ionCharge = map[ionTypeFolder][runNumber]["E_cool_eV"].as<double>();
+			YAML::Node node = parameterMap[ionTypeFolder][runNumber];
+			effectiveBunchingVoltageDirect = ReadDoubleFromYamlNode(node, "U_eff_direct_V", 0);
+			effectiveBunchingVoltageSync = ReadDoubleFromYamlNode(node, "U_eff_sync_V", 0);
+			contactOffsetPotential = ReadDoubleFromYamlNode(node, "U_c_V", 0);
+			expansionFactor = ReadDoubleFromYamlNode(node, "alpha", 1.0);
+			electronCurrent = ReadDoubleFromYamlNode(node, "I_e_uA", 0.0) * 1e-6;
+			coolingCtrlVoltage = ReadDoubleFromYamlNode(node, "U_cool_ctrl_V_out", 0.0);
+			cathodeRadius = ReadDoubleFromYamlNode(node, "r_cath", 1.2) * 1e-3; // convert to m
+
+			coolingEnergy = ConvertCtrlVoltageToLabEnergy(
+				coolingCtrlVoltage,
+				contactOffsetPotential,
+				0, // energy correction is not used here
+				electronCurrent,
+				cathodeRadius,
+				expansionFactor,
+				20 // number of iterations
+			);
+			//std::cout << "Loaded parameters for " << ionTypeFolder << " " << runNumber << std::endl;
+			//std::cout << contactOffsetPotential << " V contact offset potential" << std::endl;
 		}
 		else
 		{
@@ -522,6 +627,7 @@ void Curve::FitSlope()
 	// Get the slope and y offset
 	double offset = fitFunc.GetParameter(0);
 	double slope = fitFunc.GetParameter(1);
+	double slopeError = fitFunc.GetParError(1);
 
 	slopeValues.push_back(slope);
 	offsetValues.push_back(offset);
@@ -529,7 +635,7 @@ void Curve::FitSlope()
 	fitRanges.push_back(currentFitRange[1]);
 
 	finalSlopeValue = CalculateMean(slopeValues);
-	finalSlopeError = CalculateStdDev(slopeValues);
+	finalSlopeError = std::max(CalculateStdDev(slopeValues), slopeError);
 }
 
 void Curve::ClearSlopeList()

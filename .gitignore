@@ -14,6 +14,7 @@ output/
 
 *.toml
 *.txt
+*.tex
 
 # Binaries
 **/bin/

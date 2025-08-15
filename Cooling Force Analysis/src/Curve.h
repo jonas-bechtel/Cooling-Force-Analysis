@@ -27,6 +27,7 @@ public:
 	void ClearSlopeList();
 
 	void AddPhaseJump(PhaseJump& jump);
+	void RemovePhaseJump(int index);
 
 	void Plot();
 	void PlotSelectedJump();
@@ -34,7 +35,7 @@ public:
 
 	void Save();
 	void LoadPhaseJumpFolder(std::filesystem::path folder);
-	void LoadLabEnergiesFile(std::filesystem::path inputFile);
+	void LoadCtrlVoltagesFile(std::filesystem::path inputFile);
 	void LoadFromFile(std::filesystem::path file);
 	void LoadParameterFromMap();
 
@@ -49,6 +50,7 @@ private:
 	std::vector<double> jumpValues;
 	std::vector<double> jumpValueErrors;
 
+	std::vector<double> ctrlVoltages;
 	std::vector<double> labEnergies;
 
 	std::vector<double> detuningVelocities;
@@ -66,15 +68,20 @@ private:
 
 	// parameters
 	int ionCharge = 1;
+	double coolingCtrlVoltage = 0;
 	double coolingEnergy = 1;
 	double effectiveBunchingVoltageDirect = 1;
 	double effectiveBunchingVoltageSync = 1;
+	double electronCurrent = 0;
+	double contactOffsetPotential = 0;
+	double cathodeRadius = 0.0012; // in m
+	double expansionFactor = 1;
 	bool useDirectBunchingVoltage = true;
 
 	// labelling
 	std::string name = "name";
 	std::filesystem::path jumpDataFolder = "jump folder";
-	std::filesystem::path labEnergyFile = "lab energy file";
+	std::filesystem::path ctrlVoltagesFile = "ctrl voltages file";
 
 	static YAML::Node parameterMap;
 

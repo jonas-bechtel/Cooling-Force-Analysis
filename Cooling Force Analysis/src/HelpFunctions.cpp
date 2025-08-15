@@ -71,3 +71,23 @@ double CalculateStdDev(const std::vector<double>& data)
     }
     return std::sqrt(squaredDiffSum / data.size());
 }
+
+double ReadDoubleFromYamlNode(const YAML::Node& node, const std::string& key, double defaultValue)
+{
+    if (node[key].IsDefined() && node[key].IsScalar())
+    {
+        try
+        {
+            return node[key].as<double>();
+        }
+        catch (const YAML::Exception& e)
+        {
+            std::cerr << "Error reading double from YAML node: " << e.what() << std::endl;
+        }
+    }
+    else
+    {
+        std::cout << "Key '" << key << "' not found or not a scalar in the YAML node." << std::endl;
+	}
+    return defaultValue;
+}

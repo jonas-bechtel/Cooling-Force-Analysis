@@ -19,7 +19,8 @@ bool PhaseJump::ShowAsListItem(bool selected)
 		ImGui::SameLine();
 		ImGui::Text("different jump time");
 	}
-		
+	
+	
 
 	return clicked;
 }
@@ -74,7 +75,10 @@ void PhaseJump::AddTempValueToList()
 {
 	int numberPoints = curve->labEnergies.size();
 	if (index >= numberPoints)
+	{
+		std::cout << "test" << std::endl;
 		return;
+	}
 
 	// check for multiple versions of the same jump and add their values to the first version
 	for (int i = index; i < curve->jumps.size(); i += numberPoints)
