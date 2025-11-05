@@ -5,6 +5,7 @@
 #include "HelpFunctions.h"
 #include "LabEnergyConversion.h"
 
+
 YAML::Node Curve::parameterMap;
 
 void printYamlNode(const YAML::Node& node, const std::string& indent = "") {
@@ -30,7 +31,15 @@ void printYamlNode(const YAML::Node& node, const std::string& indent = "") {
 
 Curve::Curve()
 {
-	parameterMap = YAML::LoadFile(FileUtils::GetParameterMapFile().string());
+	try
+	{
+		parameterMap = YAML::LoadFile(FileUtils::GetParameterMapFile().string());
+	}
+	catch (const std::exception& e)
+	{
+		std::cerr << "Error loading parameter map file: " << e.what() << std::endl;
+	}
+	
 }
 
 void Curve::ShowJumpList()
@@ -519,7 +528,7 @@ void Curve::LoadFromFile(std::filesystem::path inputFile)
 		coolingEnergy = std::stod(FileUtils::SplitLine(tokens[4], ":")[1]);
 		effectiveBunchingVoltageDirect = std::stod(FileUtils::SplitLine(tokens[5], ":")[1]);
 		effectiveBunchingVoltageSync = std::stod(FileUtils::SplitLine(tokens[6], ":")[1]);
-		useDirectBunchingVoltage = (FileUtils::SplitLine(tokens[7], ":")[1] == "True") ? true : false;
+		useDirectBunchingVoltage = (FileUtils::SplitLine(tokens[7], ":")[1] == " True") ? true : false;
 		electronCurrent = std::stod(FileUtils::SplitLine(tokens[8], ":")[1]);
 		contactOffsetPotential = std::stod(FileUtils::SplitLine(tokens[9], ":")[1]);
 		cathodeRadius = std::stod(FileUtils::SplitLine(tokens[10], ":")[1]);
@@ -615,27 +624,16 @@ void Curve::SelectedItemChanged()
 
 void Curve::FitSlope()
 {
-	// Create a TGraphErrors object
-	TGraphErrors graph = TGraphErrors(coolingForceValues.size(), detuningVelocities.data(), coolingForceValues.data(), nullptr, coolingForceErrors.data());
+	LinearFitResult fitResult = linearFit(detuningVelocities, coolingForceValues, coolingForceErrors,
+		currentFitRange[0], currentFitRange[1]);
 
-	// Define the fit function (a linear function)
-	TF1 fitFunc = TF1("slope fit", "pol1", currentFitRange[0], currentFitRange[1]); // "pol1" specifies a first-degree polynomial
-
-	// Perform the fit
-	graph.Fit(&fitFunc, "R"); // "R" specifies fitting in the range
-
-	// Get the slope and y offset
-	double offset = fitFunc.GetParameter(0);
-	double slope = fitFunc.GetParameter(1);
-	double slopeError = fitFunc.GetParError(1);
-
-	slopeValues.push_back(slope);
-	offsetValues.push_back(offset);
+	slopeValues.push_back(fitResult.slope);
+	offsetValues.push_back(fitResult.offset);
 	fitRanges.push_back(currentFitRange[0]);
 	fitRanges.push_back(currentFitRange[1]);
 
 	finalSlopeValue = CalculateMean(slopeValues);
-	finalSlopeError = std::max(CalculateStdDev(slopeValues), slopeError);
+	finalSlopeError = std::max(CalculateStdDev(slopeValues), fitResult.slopeError);
 }
 
 void Curve::ClearSlopeList()
@@ -647,4 +645,53 @@ void Curve::ClearSlopeList()
 
 	finalSlopeValue = 0;
 	finalSlopeError = 0;
+}
+
+
+// Simple linear fit: y = offset + slope * x
+LinearFitResult linearFit(
+	const std::vector<double>& x,
+	const std::vector<double>& y,
+	const std::vector<double>& yErr,       // optional, pass empty for unweighted
+	double xMin,
+	double xMax
+) {
+	LinearFitResult result{ 0.0, 0.0, 0.0 };
+
+	// Accumulators for weighted regression
+	double S = 0.0;
+	double Sx = 0.0;
+	double Sy = 0.0;
+	double Sxx = 0.0;
+	double Sxy = 0.0;
+
+	for (size_t i = 0; i < x.size(); ++i) {
+		if (x[i] < xMin || x[i] > xMax)
+			continue; // apply range restriction
+
+		double w = 1.0; // weight
+		if (!yErr.empty() && yErr[i] > 0)
+			w = 1.0 / (yErr[i] * yErr[i]); // 1/sigma^2 weighting
+
+		S += w;
+		Sx += w * x[i];
+		Sy += w * y[i];
+		Sxx += w * x[i] * x[i];
+		Sxy += w * x[i] * y[i];
+	}
+
+	double denom = (S * Sxx - Sx * Sx);
+	if (denom == 0.0) {
+		result.offset = std::numeric_limits<double>::quiet_NaN();
+		result.slope = std::numeric_limits<double>::quiet_NaN();
+		return result;
+	}
+
+	result.slope = (S * Sxy - Sx * Sy) / denom;
+	result.offset = (Sy - result.slope * Sx) / S;
+
+	// Slope error (sqrt of variance)
+	result.slopeError = std::sqrt(S / denom);
+
+	return result;
 }

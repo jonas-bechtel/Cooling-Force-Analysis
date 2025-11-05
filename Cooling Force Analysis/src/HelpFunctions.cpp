@@ -4,18 +4,18 @@
 
 double CalculateDetuningVelocity(double coolingEnergy, double labEnergy)
 {
-    return sqrt(2 / PhysicalConstants::electronMass) * (sqrt(coolingEnergy * TMath::Qe()) - sqrt(labEnergy * TMath::Qe()));
+    return sqrt(2 / PhysicalConstants::electronMass) * (sqrt(coolingEnergy * PhysicalConstants::elementaryCharge) - sqrt(labEnergy * PhysicalConstants::elementaryCharge));
 }
 
 double CalculateCoolingForce(double phaseJump, double effectiveBunchingVoltage, int ionCharge)
 {
-    return ionCharge * effectiveBunchingVoltage * sin(phaseJump * TMath::Pi() / 180) / CSR::coolerLength;
+    return ionCharge * effectiveBunchingVoltage * sin(phaseJump * PhysicalConstants::pi / 180) / CSR::coolerLength;
 }
 
 // error using gaussian error propagation
 double CalculateCoolingForceError(double phaseJump, double phaseJumpError, double effectiveBunchingVoltage, int ionCharge)
 {
-    return abs(ionCharge * effectiveBunchingVoltage * cos(phaseJump * TMath::Pi() / 180) / CSR::coolerLength * phaseJumpError * TMath::Pi() / 180);
+    return abs(ionCharge * effectiveBunchingVoltage * cos(phaseJump * PhysicalConstants::pi / 180) / CSR::coolerLength * phaseJumpError * PhysicalConstants::pi / 180);
 }
 
 std::vector<double> MovingAverage(const std::vector<double>& data, std::size_t windowSize)

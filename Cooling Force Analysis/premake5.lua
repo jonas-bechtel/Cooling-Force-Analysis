@@ -25,13 +25,12 @@ project "Cooling Force Analysis"
 		"%{wks.location}/Cooling Force Analysis/vendor/imgui/backends",
 		"%{wks.location}/Cooling Force Analysis/vendor/implot",
 		"%{wks.location}/Cooling Force Analysis/vendor/tinyfiledialogs",
-		"%{wks.location}/Cooling Force Analysis/vendor/ROOT/include",
 		"%{wks.location}/Cooling Force Analysis/vendor/yaml-cpp/include"
 	}
 
 	libdirs 
 	{
-		"%{wks.location}/Cooling Force Analysis/vendor/ROOT/lib"
+
 	}
 
 	links
@@ -39,16 +38,7 @@ project "Cooling Force Analysis"
 		"imgui",
 		"implot",
 		"tinyfiledialogs",
-		"yaml-cpp",
-		"libCore",
-		"libRIO",
-		"libHist",
-		"libGpad",
-		"libGraf",
-		"libGraf3d",
-		"libMatrix",
-		"libMathCore",
-		"libPhysics"
+		"yaml-cpp"
 	}
 
 	filter "system:windows"

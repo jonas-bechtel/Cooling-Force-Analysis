@@ -3,6 +3,22 @@
 
 #include "yaml-cpp/yaml.h"
 
+struct LinearFitResult 
+{
+	double offset;
+	double slope;
+	double slopeError;
+};
+
+// Simple linear fit: y = offset + slope * x
+LinearFitResult linearFit(
+	const std::vector<double>& x,
+	const std::vector<double>& y,
+	const std::vector<double>& yErr,       // optional, pass empty for unweighted
+	double xMin,
+	double xMax
+);
+
 class Curve
 {
 public:
